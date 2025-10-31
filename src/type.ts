@@ -4,6 +4,7 @@ export interface Intervention {
   id: number;
   clientName: string;
   status: 'en-attente' | 'acceptee' | 'terminee';
+  subStatus?: 'en-route' | 'arrive'| 'terminee';
   description: string;
   createdAt: string; // Format ISO: "2025-10-27T21:10:00Z"
   address: string;

@@ -5,14 +5,17 @@ import { locationSharp } from 'ionicons/icons';
 import { Intervention } from '../type';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+// import { MapPin, MapPinOff, Navigation } from 'lucide-react';
 
 interface InterventionCardProps {
   intervention: Intervention;
-  onStatusChange: (id: number, newStatus: Intervention['status']) => void;
+  // onStatusChange: (id: number, newStatus: Intervention['status']) => void;
+  onStatusChange: (id: number, newStatus: 'acceptee' | 'terminee') => void;
   onViewDetails: () => void;
+  onSubStatusChange: (id: number, newSubStatus: NonNullable<Intervention['subStatus']>) => void;
 }
 
-const InterventionCard: React.FC<InterventionCardProps> = ({ intervention, onStatusChange, onViewDetails }) => {
+const InterventionCard: React.FC<InterventionCardProps> = ({ intervention, onStatusChange, onViewDetails, onSubStatusChange }) => {
   const timeAgo = formatDistanceToNow(new Date(intervention.createdAt), { addSuffix: true, locale: fr });
 
   // const handleNavigation = async () => {
@@ -28,6 +31,8 @@ const InterventionCard: React.FC<InterventionCardProps> = ({ intervention, onSta
   // };
 
   const getStatusLabel = () => {
+    if (intervention.subStatus === 'en-route') return 'En route';
+    if (intervention.subStatus === 'arrive') return 'Arrivé sur place';
     switch (intervention.status) {
       case 'en-attente': return 'En attente';
       case 'acceptee': return 'Acceptée';
@@ -36,12 +41,15 @@ const InterventionCard: React.FC<InterventionCardProps> = ({ intervention, onSta
   };
 
   const getStatusColor = () => {
+    if (intervention.subStatus === 'en-route') return 'warning';
+    if (intervention.subStatus === 'arrive') return 'secondary';
     switch (intervention.status) {
       case 'en-attente': return 'danger';
       case 'acceptee': return 'success';
       case 'terminee': return 'medium';
     }
   };
+
 
 
   return (
@@ -56,14 +64,35 @@ const InterventionCard: React.FC<InterventionCardProps> = ({ intervention, onSta
       <IonCardContent>
         <p>{intervention.description}</p>
         <div style={{ marginTop: '16px', display: 'flex', gap: '10px' }}>
-          {intervention.status === 'en-attente' && (
+          {intervention.status === 'acceptee' && (
             <>
-              <IonButton expand="block" onClick={() => onStatusChange(intervention.id, 'acceptee')} style={{ flex: 1 }}>
-                Accepter
-              </IonButton>
-              <IonButton expand="block" color="light" onClick={() => console.log('Refusé')} style={{ flex: 1 }}>
-                Refuser
-              </IonButton>
+              {/* Cas 1 : Juste acceptée, pas de sous-état */}
+              {!intervention.subStatus && (
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <IonButton expand="block" onClick={onViewDetails} style={{ flex: 1 }}>
+                    {/* <MapPin size={16} style={{ marginRight: '8px' }} /> */}
+                    Détails
+                  </IonButton>
+                  <IonButton expand="block" color="warning" onClick={() => onSubStatusChange(intervention.id, 'en-route')} style={{ flex: 1 }}>
+                    {/* <Navigation size={16} style={{ marginRight: '8px' }} /> */}
+                    Démarrer la route
+                  </IonButton>
+                </div>
+              )}
+              {/* Cas 2 : L'agent est en route */}
+              {intervention.subStatus === 'en-route' && (
+                <IonButton expand="block" color="secondary" onClick={() => onSubStatusChange(intervention.id, 'arrive')}>
+                  {/* <MapPinOff size={16} style={{ marginRight: '8px' }} /> */}
+                  Arrivé sur place
+                </IonButton>
+              )}
+
+              {/* Cas 3 : L'agent est arrivé */}
+              {intervention.subStatus === 'arrive' && (
+                <IonButton expand="block" color="success" onClick={() => {onStatusChange(intervention.id, 'terminee'); onSubStatusChange(intervention.id, 'terminee');}}>
+                  Marquer comme terminée
+                </IonButton>
+              )}
             </>
           )}
 
@@ -73,10 +102,19 @@ const InterventionCard: React.FC<InterventionCardProps> = ({ intervention, onSta
                 <IonIcon icon={locationSharp} style={{ marginRight: '8px' }} />
                 Voir les détails
               </IonButton>
-              <IonButton expand="block" color="success" onClick={() => onStatusChange(intervention.id, 'terminee')} style={{ flex: 1 }}>
-                Terminer
-              </IonButton>
               </>
+          )}
+
+          {intervention.status === 'en-attente' && (
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <IonButton expand="block" onClick={onViewDetails} style={{ flex: 1 }}>
+                <IonIcon icon={locationSharp} style={{ marginRight: '8px' }} />
+                Voir les détails
+              </IonButton>
+              <IonButton expand="block" onClick={() => onStatusChange(intervention.id, 'acceptee')} style={{ flex: 1 }}>
+                Accepter
+              </IonButton>
+            </div>
           )}
         </div>
       </IonCardContent>

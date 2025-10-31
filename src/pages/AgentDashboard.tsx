@@ -1,6 +1,6 @@
 // src/pages/AgentDashboard.tsx
 import React, { useState, useMemo } from 'react';
-import { IonContent, IonPage, IonModal, IonHeader, IonToolbar, IonTitle, IonSegment, IonSegmentButton, IonLabel, IonBadge, IonButtons, IonButton } from '@ionic/react';
+import { IonContent, IonPage, IonModal, IonHeader, IonToolbar, IonTitle, IonSegment, IonSegmentButton, IonLabel, IonBadge, IonButtons, IonButton, } from '@ionic/react';
 import { mockInterventions } from '../data/mockInterventions';
 import { Intervention } from '../type';
 import InterventionCard from '../components/InterventionCard';
@@ -31,6 +31,17 @@ const AgentDashboard: React.FC = () => {
     if (selectedIntervention && selectedIntervention.id === id) {
       setSelectedIntervention({ ...selectedIntervention, status: newStatus });
     }
+  };
+
+  const handleSubStatusChange = (id: number, newSubStatus: NonNullable<Intervention['subStatus']>) => {
+    setInterventions(prev =>
+      prev.map(inter =>
+        inter.id === id ? { ...inter, subStatus: newSubStatus } : inter
+      )
+    );
+    // Message de confirmation
+    // const message = newSubStatus === 'en-route' ? 'Déplacement en cours.' : 'Arrivée sur site confirmée.';
+    // present({ message, duration: 2000, color: 'primary' });
   };
 
   return (
@@ -81,6 +92,7 @@ const AgentDashboard: React.FC = () => {
                 key={intervention.id}
                 intervention={intervention}
                 onStatusChange={handleStatusChange}
+                onSubStatusChange={handleSubStatusChange}
                 onViewDetails={() => setSelectedIntervention(intervention)}
               />
             ))
@@ -89,6 +101,7 @@ const AgentDashboard: React.FC = () => {
       <IonModal isOpen={!!selectedIntervention} onDidDismiss={() => setSelectedIntervention(null)}>
         <InterventionDetail
           intervention={selectedIntervention}
+          onStatusChange={handleStatusChange}
           onClose={() => setSelectedIntervention(null)}
           onMarkAsTerminated={handleStatusChange}
         />

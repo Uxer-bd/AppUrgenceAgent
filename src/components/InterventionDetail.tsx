@@ -10,10 +10,11 @@ import { call, location, informationCircle, close } from 'ionicons/icons';
 interface ModalProps {
   intervention: Intervention | null;
   onClose: () => void;
+  onStatusChange: (id: number, newStatus: 'acceptee' | 'terminee') => void;
   onMarkAsTerminated: (id: number, status: 'terminee') => void;
 }
 
-const InterventionDetail: React.FC<ModalProps> = ({ intervention, onClose, onMarkAsTerminated }) => {
+const InterventionDetail: React.FC<ModalProps> = ({ intervention, onClose, onMarkAsTerminated, onStatusChange }) => {
   if (!intervention) return null;
 
   const timeAgo = formatDistanceToNow(new Date(intervention.createdAt), { addSuffix: true, locale: fr });
@@ -81,21 +82,30 @@ const InterventionDetail: React.FC<ModalProps> = ({ intervention, onClose, onMar
       </IonContent>
 
       {/* Footer Buttons */}
-      <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <IonButton expand="block" color="success" onClick={handleCall} style={{ flex: 1 }}>
-            <IonIcon icon={call} style={{ marginRight: '8px', fontSize: '16px' }} />
-            Appeler
-          </IonButton>
-          <IonButton expand="block" onClick={handleNavigation} style={{ flex: 1 }}>
-            <IonIcon icon={location} style={{ marginRight: '8px', fontSize: '16px' }} />
-            Navigation
+      { intervention.status === 'acceptee' && (
+        <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <IonButton expand="block" color="success" onClick={handleCall} style={{ flex: 1 }}>
+              <IonIcon icon={call} style={{ marginRight: '8px', fontSize: '16px' }} />
+              Appeler
+            </IonButton>
+            <IonButton expand="block" onClick={handleNavigation} style={{ flex: 1 }}>
+              <IonIcon icon={location} style={{ marginRight: '8px', fontSize: '16px' }} />
+              Navigation
+            </IonButton>
+          </div>
+          <IonButton expand="block" color="success" onClick={() => {onMarkAsTerminated(intervention.id, 'terminee'); onClose();}}>
+            Marquer comme terminée
           </IonButton>
         </div>
-        <IonButton expand="block" color="success" onClick={() => onMarkAsTerminated(intervention.id, 'terminee')}>
-          Marquer comme terminée
-        </IonButton>
-      </div>
+        )}
+      {intervention.status === 'en-attente' && (
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <IonButton expand="block" onClick={() => {onStatusChange(intervention.id, 'acceptee'); onClose()}} style={{ flex: 1 }}>
+            Accepter
+          </IonButton>
+        </div>
+      )}
     </>
   );
 };

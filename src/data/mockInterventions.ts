@@ -17,7 +17,7 @@ export const mockInterventions: Intervention[] = [
   {
     id: 2,
     clientName: 'Bernard Laurent',
-    status: 'acceptee',
+    status: 'en-attente',
     description: 'Plusieurs prises ne fonctionnent plus dans le salon.',
     createdAt: new Date(now.getTime() - 25 * 60 * 1000).toISOString(), // Il y a 25 minutes
     address: '8 Avenue des Champs-Élysées, 75008 Paris',
@@ -28,6 +28,7 @@ export const mockInterventions: Intervention[] = [
     id: 3,
     clientName: 'Martin Sophie',
     status: 'acceptee',
+    subStatus: 'en-route',
     description: 'Lumière de la cuisine qui clignote sans arrêt.',
     createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(), // Il y a 2 heures
     address: '1 Place du Trocadéro, 75116 Paris',
@@ -43,5 +44,16 @@ export const mockInterventions: Intervention[] = [
     address: '20 Rue du Commerce, 75015 Paris',
     phone: '07 11 22 33 44',
     coords: { lat: 48.8488, lng: 2.2885 },
+  },
+  {
+    id: 5,
+    clientName: 'Garcia Chloe',
+    status: 'acceptee',
+    subStatus: 'arrive',
+    description: 'Le tableau électrique fait un bruit étrange.',
+    createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
+    address: '55 Boulevard de la Villette, 75010 Paris',
+    phone: '06 11 22 44 55',
+    coords: { lat: 48.8784, lng: 2.3695 },
   },
 ];
