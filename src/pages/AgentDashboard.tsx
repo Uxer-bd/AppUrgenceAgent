@@ -57,11 +57,11 @@ const AgentDashboard: React.FC = () => {
             <IonTitle style={{ fontSize: '1.2em', padding: 0 }}>Interventions Électriques</IonTitle>
             <p style={{ margin: '0', fontSize: '0.9em', color: 'rgba(255,255,255,0.8)' }}>Agent de terrain</p>
           </div>
-          <IonButtons slot="end">
+          {/*<IonButtons slot="end">
             <IonButton shape="round" style={{ '--background': '#eb445a', fontSize: '0.8em', height: '30px', marginRight: '10px' }}>
               1 nouvelle
             </IonButton>
-          </IonButtons>
+          </IonButtons>*/}
         </IonToolbar>
         <IonToolbar>
           <IonSegment value={selectedTab} onIonChange={e => setSelectedTab(e.detail.value as 'en-attente' | 'acceptee' | 'terminee')}>
