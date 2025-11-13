@@ -1,51 +1,71 @@
 // src/pages/ManagerDashboard.tsx
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
-    IonPage, IonContent, IonHeader, IonToolbar, IonTitle, IonLoading, useIonToast, 
-    IonList, IonItem, IonLabel, IonNote, IonButtons, IonButton, 
-    IonIcon // Importation du composant IonIcon
+    IonContent, IonPage, IonHeader, IonToolbar, IonTitle, IonSegment, IonSegmentButton, 
+    IonLabel, IonBadge, IonButtons, IonButton, IonIcon, IonLoading, useIonToast, IonItem,
+    IonNote,
 } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
-import { 
-    personAddOutline, // Icône pour la création d'agent
-    refreshOutline
-} from 'ionicons/icons';
+import { personAddOutline, refreshOutline } from 'ionicons/icons'; 
 
-// Définition de l'interface des interventions (vue Manager)
+// Définition des types basés sur votre API Manager
+type ManagerTab = 'pending' | 'assigned' | 'completed';
+
 interface Intervention {
     id: number;
     reference: string;
-    status: 'pending' | 'accepted' | 'in-progress' | 'completed' | 'closed';
-    address: string;
     description: string;
+    address: string;
     priority_level: 'low' | 'medium' | 'high';
-    client: {
-        name: string;
-    };
-    assigned_agent?: {
-        name: string;
-    } | null;
+    // Les statuts API réels
+    status: 'pending' | 'accepted' | 'in-progress' | 'completed' | 'closed'; 
+    created_at: string;
+    client: { name: string; }; 
+    assigned_agent?: { name: string; id: number; } | null;
 }
 
 const ManagerDashboard: React.FC = () => {
     const [interventions, setInterventions] = useState<Intervention[]>([]);
+    const [selectedTab, setSelectedTab] = useState<ManagerTab>('pending');
     const [isLoading, setIsLoading] = useState(true);
     const [present] = useIonToast();
     const history = useHistory();
     
-    // Constantes d'API et de Token
-    const API_URL = "https://intervention.tekfaso.com/api/interventions"; // Endpoint pour TOUTES les interventions (Manager View)
+    // Constantes d'API
+    const API_URL = "https://intervention.tekfaso.com/api/manager/interventions"; 
     const TOKEN = localStorage.getItem('access_token');
     const USER_ROLE = localStorage.getItem('user_role');
 
-    // Fonction pour charger TOUTES les interventions
+    // --- LOGIQUE DE FILTRAGE ET COMPTEURS ---
+
+    // Fonction pour mapper les statuts API aux onglets Manager
+    const mapStatusToTab = (status: Intervention['status']): ManagerTab => {
+        if (status === 'pending') return 'pending';
+        if (status === 'completed' || status === 'closed') return 'completed';
+        // accepted, in-progress, started, arrived
+        return 'assigned'; 
+    };
+
+    const counts = useMemo(() => {
+        const initial = { 'pending': 0, 'assigned': 0, 'completed': 0 };
+        return interventions.reduce((acc, inter) => {
+            const tab = mapStatusToTab(inter.status);
+            acc[tab]++;
+            return acc;
+        }, initial);
+    }, [interventions]);
+
+    const filteredInterventions = useMemo(() =>
+        interventions.filter(inter => mapStatusToTab(inter.status) === selectedTab),
+        [interventions, selectedTab]
+    );
+
+    // --- FONCTIONS DE FETCH ET UTILITAIRES ---
+    
     const fetchAllInterventions = async () => {
         setIsLoading(true);
-
-        // Vérification de sécurité et d'autorisation
         if (!TOKEN || USER_ROLE !== 'manager') {
-            present({ message: 'Accès Manager non autorisé. Veuillez vous connecter.', duration: 3000, color: 'danger' });
+            present({ message: 'Accès Manager non autorisé.', duration: 3000, color: 'danger' });
             history.replace('/login');
             setIsLoading(false);
             return;
@@ -61,15 +81,11 @@ const ManagerDashboard: React.FC = () => {
             });
 
             if (!response.ok) {
-                if (response.status === 401) {
-                    throw new Error('Session expirée. Veuillez vous reconnecter.');
-                }
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Échec du chargement des interventions.');
             }
 
             const responseData = await response.json();
-            // On suppose que l'API renvoie la liste complète dans responseData.data (ou directement responseData)
             setInterventions(responseData.data || responseData || []); 
 
         } catch (error: unknown) {
@@ -84,19 +100,7 @@ const ManagerDashboard: React.FC = () => {
         fetchAllInterventions();
     }, []);
     
-    // Fonction utilitaire pour la couleur du statut
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'pending': return 'warning'; // En attente (Jaune)
-            case 'accepted': 
-            case 'in-progress': return 'primary'; // En cours (Bleu)
-            case 'completed': 
-            case 'closed': return 'success'; // Terminée/Clôturée (Vert)
-            default: return 'medium'; // Gris
-        }
-    }
-    
-    // Fonction utilitaire pour la couleur de la priorité
+    // Fonction utilitaire pour la couleur
     const getPriorityColor = (priority: string) => {
         switch (priority) {
             case 'high': return 'danger';
@@ -106,11 +110,21 @@ const ManagerDashboard: React.FC = () => {
     };
 
 
+    // --- RENDU DU COMPOSANT ---
+
     return (
         <IonPage>
             <IonHeader>
-                <IonToolbar color="primary">
-                    <IonTitle>Tableau de Bord Manager</IonTitle>
+                <IonToolbar color="primary" style={{ '--background': '#3880ff' }}>
+                    <IonButtons slot="start">
+                        <IonButton onClick={fetchAllInterventions} disabled={isLoading}>
+                            <IonIcon icon={refreshOutline} slot="icon-only" />
+                        </IonButton>
+                    </IonButtons>
+                    <div style={{ paddingLeft: '10px' }}>
+                        <IonTitle style={{ fontSize: '1.2em', padding: 0 }}>Gestion des Interventions</IonTitle>
+                        <p style={{ margin: '0', fontSize: '0.9em', color: 'rgba(255,255,255,0.8)' }}>Tableau de Bord Manager</p>
+                    </div>
                     <IonButtons slot="end">
                         <IonButton 
                             onClick={() => history.push('/manager/create-agent')}
@@ -119,43 +133,67 @@ const ManagerDashboard: React.FC = () => {
                             <IonIcon icon={personAddOutline} slot="start" />
                             Agent
                         </IonButton>
-                        <IonButton onClick={fetchAllInterventions} color="light">
-                            <IonIcon icon={refreshOutline} />
-                        </IonButton>
                     </IonButtons>
                 </IonToolbar>
-            </IonHeader>
-            <IonContent fullscreen className="ion-padding">
-                <IonLoading isOpen={isLoading} message={'Chargement de toutes les interventions...'} />
                 
-                {interventions.length === 0 && !isLoading && (
-                    <p>Aucune intervention n'a été signalée pour l'instant.</p>
-                )}
+                {/* --- SEGMENTS (ONGLETS) --- */}
+                <IonToolbar>
+                    <IonSegment value={selectedTab} onIonChange={e => setSelectedTab(e.detail.value as ManagerTab)}>
+                        
+                        <IonSegmentButton value="pending">
+                            <IonLabel>En attente</IonLabel>
+                            {counts['pending'] > 0 && <IonBadge color="danger">{counts['pending']}</IonBadge>}
+                        </IonSegmentButton>
+                        
+                        <IonSegmentButton value="assigned">
+                            <IonLabel>Assignées</IonLabel>
+                            {counts['assigned'] > 0 && <IonBadge color="success">{counts['assigned']}</IonBadge>}
+                        </IonSegmentButton>
+                        
+                        <IonSegmentButton value="completed">
+                            <IonLabel>Terminées</IonLabel>
+                            {counts['completed'] > 0 && <IonBadge color="medium">{counts['completed']}</IonBadge>}
+                        </IonSegmentButton>
+                        
+                    </IonSegment>
+                </IonToolbar>
+            </IonHeader>
 
-                <IonList>
-                    {interventions.map(inter => (
-                        <IonItem key={inter.id} detail={true} routerLink={`/manager/intervention/${inter.id}`}>
-                            <IonLabel>
-                                <h2 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    {/* 💡 Affiche la Référence et la Priorité */}
-                                    {inter.reference} 
-                                    <IonNote color={getPriorityColor(inter.priority_level)} style={{ fontWeight: 'bold' }}>
-                                        {inter.priority_level.toUpperCase()}
-                                    </IonNote>
-                                </h2>
-                                {/* Affiche le nom du Client */}
-                                <p>Client : {inter.client.name}</p>
-                                <p>Adresse : {inter.address}</p>
-                                <p>Description : {inter.description}</p>
-                                {/* Affiche l'Agent assigné via assigned_agent */}
-                                <p>Assigné à : {inter.assigned_agent ? inter.assigned_agent.name : 'Non assigné'} </p>
-                            </IonLabel>
-                            <IonNote slot="end" color={getStatusColor(inter.status)}>
-                                {inter.status.toUpperCase()}
-                            </IonNote>
-                        </IonItem>
-                    ))}
-                </IonList>
+            <IonContent fullscreen className="ion-padding" style={{ '--background': '#f4f5f8' }}>
+                <IonLoading isOpen={isLoading} message={'Chargement...'} />
+
+                {filteredInterventions.length === 0 && !isLoading ? (
+                    <div style={{ textAlign: 'center', color: '#888', marginTop: '50px' }}>
+                        <p>Aucune intervention dans cette catégorie.</p>
+                    </div>
+                ) : (
+                    <div style={{ paddingTop: '10px' }}>
+                        {filteredInterventions.map(inter => (
+                            // Utilisation de IonItem pour une navigation simple vers les détails
+                            <IonItem 
+                                key={inter.id} 
+                                detail={true} 
+                                routerLink={`/manager/intervention/${inter.id}`}
+                                style={{ marginBottom: '10px', borderRadius: '8px' }}
+                            >
+                                <IonLabel>
+                                    <h2 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        {inter.reference} 
+                                        <IonNote color={getPriorityColor(inter.priority_level)} style={{ fontWeight: 'bold' }}>
+                                            {inter.priority_level.toUpperCase()}
+                                        </IonNote>
+                                    </h2>
+                                    <p>Client: **{inter.client.name}**</p> 
+                                    <p>Assigné à: **{inter.assigned_agent ? inter.assigned_agent.name : 'Non assigné'}**</p>
+                                    <p style={{ marginTop: '5px', color: '#888', fontSize: '0.85em' }}>
+                                        Statut API: {inter.status.toUpperCase()}
+                                    </p>
+                                </IonLabel>
+                                
+                            </IonItem>
+                        ))}
+                    </div>
+                )}
             </IonContent>
         </IonPage>
     );

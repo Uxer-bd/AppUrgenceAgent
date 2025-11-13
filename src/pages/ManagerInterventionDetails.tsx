@@ -6,65 +6,76 @@ import {
     IonLoading, useIonToast, IonCard, IonCardHeader, IonCardContent, 
     IonItem, IonLabel, IonNote, IonButton, IonIcon, 
     IonModal, IonList, IonRadioGroup, IonRadio, 
-    IonSelect, IonSelectOption 
+    IonSelect, IonSelectOption
 } from '@ionic/react';
 import { useHistory, useParams } from 'react-router-dom';
 import {
-    refreshOutline,      // Pour rafraîchir la page
-    personAddOutline,    // Pour l'affectation / réaffectation
-    closeCircleOutline,  // Pour la clôture de l'intervention
-    alertCircleOutline   // Pour la priorité
-} from 'ionicons/icons'; 
+    refreshOutline,
+    personAddOutline,
+    closeCircleOutline,
+    alertCircleOutline,
+    callOutline
+} from 'ionicons/icons';
+
+// Interface pour les données de l'AGENT assigné
+interface AssignedAgent {
+    id: number;
+    name: string;
+    phone: string;
+}
+
+// Interface pour les données du CLIENT (imbriquées)
+interface ClientData {
+    name: string;
+    phone: string;
+    address: string;
+}
 
 // Interface pour les données de l'intervention (Manager View)
 interface Intervention {
     id: number;
-    title: string;
+    reference: string;
     description: string;
     address: string;
-    client_name: string;
-    client_phone: string;
+    client: ClientData;
+    agent_id: number;
     status: 'pending' | 'accepted' | 'in-progress' | 'completed' | 'closed';
     priority_level: 'low' | 'medium' | 'high';
     created_at: string;
-    // Données de l'agent si assigné
-    agent?: {
-        id: number;
-        name: string;
-    } | null;
+    agent?: AssignedAgent | null;
 }
 
-// Interface pour les Agents disponibles
-interface Agent {
+// Interface pour les Agents disponibles (doit correspondre à AssignedAgent)
+interface AvailableAgent {
     id: number;
     name: string;
+    phone: string;
 }
 
 const ManagerInterventionDetails: React.FC = () => {
-    // Récupérer l'ID de l'URL
     const { id } = useParams<{ id: string }>();
     const history = useHistory();
     const [present] = useIonToast();
 
-    // États principaux
     const [intervention, setIntervention] = useState<Intervention | null>(null);
-    const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
+    const [availableAgents, setAvailableAgents] = useState<AvailableAgent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-    // États des modales / actions
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [showPriorityModal, setShowPriorityModal] = useState(false);
     const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
     const [newPriority, setNewPriority] = useState<'low' | 'medium' | 'high'>('low');
 
-    // Constantes d'API et de Token
     const API_BASE_URL = "https://intervention.tekfaso.com/api/manager/interventions";
-    const AGENT_API_URL = "https://intervention.tekfaso.com/api/manager/agents/available";
+    // prendre un utilisateur unique
+    const USER_DETAIL_API_BASE_URL = "https://intervention.tekfaso.com/api/users";
+    // CORRECTION 1: Nouvelle URL pour les agents disponibles
+    const AGENT_LIST_API_URL = "https://intervention.tekfaso.com/api/users?role=agent&status=active";
+    
     const TOKEN = localStorage.getItem('access_token');
     const USER_ROLE = localStorage.getItem('user_role');
 
-    // Fonction utilitaire pour la couleur de priorité
     const getPriorityColor = (priority: string) => {
         switch (priority) {
             case 'high': return 'danger';
@@ -73,14 +84,36 @@ const ManagerInterventionDetails: React.FC = () => {
         }
     };
 
+    // Fonction pour récupérer les détails de l'agent si l'objet 'assigned_agent' est null
+    const fetchAgentDetails = async (agentId: number): Promise<AssignedAgent | null> => {
+        try {
+            const response = await fetch(`${USER_DETAIL_API_BASE_URL}/${agentId}`, {
+                headers: { 'Authorization': `Bearer ${TOKEN}` }
+            });
+            if (!response.ok) throw new Error("Échec du chargement de l'agent.");
+
+            const data = await response.json();
+            const userData = data.data || data; // L'objet utilisateur complet
+            return {
+                id: userData.id,
+                name: userData.name || `${userData.first_name} ${userData.last_name}`.trim(),
+                phone: userData.phone || 'N/A'
+            };
+
+        } catch (error) {
+            console.error("Erreur lors de la récupération de l'agent:", error);
+            return null;
+        }
+    }
+
     // --- Fonctions de chargement des données ---
 
-    const fetchData = async (refresh = false) => {
+   const fetchData = async (refresh = false) => {
         if (!refresh) setIsLoading(true); else setIsRefreshing(true);
 
-        // Vérification de sécurité et d'autorisation
         if (USER_ROLE !== 'manager' || !TOKEN) {
-            present({ message: 'Accès non autorisé ou session expirée.', duration: 3000, color: 'danger' });
+            const message = 'Accès non autorisé ou session expirée.';
+            present({ message, duration: 3000, color: 'danger' });
             history.replace('/login');
             return;
         }
@@ -95,20 +128,38 @@ const ManagerInterventionDetails: React.FC = () => {
             if (!interventionResponse.ok) throw new Error("Échec du chargement des détails.");
 
             const responseData = await interventionResponse.json();
-            const interventionData = responseData.intervention || responseData; 
+            const rawData = responseData.intervention || responseData.data || responseData; 
+            
+            // Déterminer l'objet agent initial
+            let assignedAgentData: AssignedAgent | null = rawData.assigned_agent || rawData.agent || null;
+            
+            // VÉRIFICATION CRITIQUE: Si assigned_agent est null mais agent_id est présent
+            if (rawData.agent_id && assignedAgentData === null) {
+                // Effectuer l'appel API pour obtenir les détails de l'agent
+                assignedAgentData = await fetchAgentDetails(rawData.agent_id);
+            }
+
+            // Mapper les données
+            const interventionData: Intervention = {
+                ...rawData,
+                client: rawData.client, 
+                agent_id: rawData.agent_id || null,
+                agent: assignedAgentData, // Utiliser l'objet agent complet (soit inclus, soit récupéré)
+            };
 
             setIntervention(interventionData); 
             setNewPriority(interventionData.priority_level || 'low');
 
-            // 2. Charger la liste des agents disponibles
-            const agentsResponse = await fetch(AGENT_API_URL, {
+            // 2. Charger la liste des agents disponibles (pour la modale)
+            const agentsResponse = await fetch(AGENT_LIST_API_URL, {
                 headers: { 'Authorization': `Bearer ${TOKEN}` }
             });
 
             if (!agentsResponse.ok) throw new Error("Échec du chargement des agents.");
 
             const agentsData = await agentsResponse.json();
-            setAvailableAgents(agentsData.agents || []);
+            // Accéder à la liste via data.users (correction précédente)
+            setAvailableAgents(agentsData.data?.users || []);
 
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'Erreur réseau ou d\'autorisation.';
@@ -147,10 +198,11 @@ const ManagerInterventionDetails: React.FC = () => {
 
             present({ message: `Agent ${endpoint === 'reassign' ? 'réaffecté' : 'affecté'} avec succès !`, duration: 2000, color: 'success' });
             setShowAssignModal(false);
-            fetchData(true); // Recharger les données
+            fetchData(true); 
 
         } catch (error: unknown) {
-            present({ message: (error as Error).message, duration: 3000, color: 'danger' });
+            const message = (error as Error).message; // Utilisation de const pour la variable message
+            present({ message, duration: 3000, color: 'danger' });
         } finally {
             setIsLoading(false);
         }
@@ -177,7 +229,8 @@ const ManagerInterventionDetails: React.FC = () => {
             fetchData(true); 
 
         } catch (error: unknown) {
-            present({ message: (error as Error).message, duration: 3000, color: 'danger' });
+            const message = (error as Error).message; // Utilisation de const pour la variable message
+            present({ message, duration: 3000, color: 'danger' });
         } finally {
             setIsLoading(false);
         }
@@ -189,7 +242,7 @@ const ManagerInterventionDetails: React.FC = () => {
         setIsLoading(true);
         try {
             const response = await fetch(`${API_BASE_URL}/${id}/close`, {
-                method: 'POST', // L'API utilise POST pour fermer l'intervention
+                method: 'POST', 
                 headers: { 
                     'Authorization': `Bearer ${TOKEN}` 
                 }
@@ -198,10 +251,11 @@ const ManagerInterventionDetails: React.FC = () => {
             if (!response.ok) throw new Error('Échec de la fermeture de l\'intervention.');
             
             present({ message: 'Intervention clôturée avec succès !', duration: 2000, color: 'success' });
-            fetchData(true); // Recharger pour afficher le statut 'closed'
+            fetchData(true); 
 
         } catch (error: unknown) {
-            present({ message: (error as Error).message, duration: 3000, color: 'danger' });
+            const message = (error as Error).message; // Utilisation de const pour la variable message
+            present({ message, duration: 3000, color: 'danger' });
         } finally {
             setIsLoading(false);
         }
@@ -218,7 +272,8 @@ const ManagerInterventionDetails: React.FC = () => {
     }
     
     const isClosed = intervention.status === 'completed' || intervention.status === 'closed';
-
+    const assignedAgent = intervention.agent;
+    
     return (
         <IonPage>
             <IonHeader>
@@ -258,43 +313,59 @@ const ManagerInterventionDetails: React.FC = () => {
                 </IonCard>
 
                 {/* --- Détails Client et Problème --- */}
-                <IonCard style={{ marginBottom: '20px' }}>
-                    <IonCardHeader><IonTitle>Détails de l'intervention</IonTitle></IonCardHeader>
+                <IonCard style={{ marginBottom: '5px' }}>
+                    <IonCardHeader><IonTitle size="large">Détails de l'intervention</IonTitle></IonCardHeader>
                     <IonCardContent>
-                        <IonItem lines="none"><IonLabel>Client:</IonLabel><IonNote slot="end">**{intervention.client_name}**</IonNote></IonItem>
-                        <IonItem lines="none"><IonLabel>Téléphone:</IonLabel><IonNote slot="end">**{intervention.client_phone}**</IonNote></IonItem>
-                        <IonItem lines="none"><IonLabel>Adresse:</IonLabel><IonNote slot="end">**{intervention.address}**</IonNote></IonItem>
+                        <IonItem lines="none"><IonLabel>Client : {intervention.client.name}</IonLabel></IonItem>
+                        <IonItem lines="none"><IonLabel>Téléphone : {intervention.client.phone}</IonLabel></IonItem>
+                        <IonItem lines="none"><IonLabel>Adresse Client : {intervention.client.address}</IonLabel></IonItem>
+                        <IonItem lines="none"><IonLabel>Lieu Intervention : {intervention.address}</IonLabel></IonItem>
                         <IonItem lines="none" className="ion-margin-top"><IonLabel position="stacked">Description du problème:</IonLabel></IonItem>
                         <p className="ion-padding-start">{intervention.description}</p>
                     </IonCardContent>
                 </IonCard>
-                
                 {/* --- Section Affectation --- */}
-                <IonCard color={intervention.agent ? 'success' : 'warning'} style={{ marginBottom: '20px' }}>
+                <IonCard color={assignedAgent ? 'success' : 'warning'} style={{ marginBottom: '20px' }}>
                     <IonCardHeader style={{ color: 'white' }}>
-                        <IonTitle style={{ color: 'white' }}>Technicien Assigné</IonTitle>
+                        <IonTitle size="large" style={{ color: 'white' }}>Technicien Assigné</IonTitle>
                     </IonCardHeader>
                     <IonCardContent style={{ color: 'white' }}>
-                        <IonLabel style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h2 style={{ fontSize: '1.2em' }}>{intervention.agent ? intervention.agent.name : 'Aucun agent assigné'}</h2>
-                            
-                            <IonButton 
+                        <IonLabel style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                            <h2 style={{ fontSize: '1.2em' }}>{assignedAgent ? assignedAgent.name : 'Aucun agent assigné'}</h2>
+
+                            <IonButton
                                 onClick={() => setShowAssignModal(true)}
                                 color="light"
                                 disabled={isClosed}
                             >
                                 <IonIcon icon={personAddOutline} slot="start" />
-                                {intervention.agent ? 'Ré-affecter' : 'Affecter'}
+                                {assignedAgent ? 'Ré-affecter' : 'Affecter'}
                             </IonButton>
                         </IonLabel>
+
+                        {/* Détails supplémentaires de l'agent : Téléphone */}
+                        {assignedAgent && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <p style={{ margin: 0 }}>Tél: **{assignedAgent.phone}**</p>
+                                <IonButton
+                                    color="light"
+                                    fill="clear"
+                                    size="small"
+                                    href={`tel:${assignedAgent.phone}`}
+                                >
+                                    <IonIcon icon={callOutline} slot="icon-only" />
+                                </IonButton>
+                            </div>
+                        )}
+
                     </IonCardContent>
                 </IonCard>
 
                 {/* --- Bouton Clôturer l'Intervention --- */}
                 {!isClosed && (
-                    <IonButton 
-                        expand="block" 
-                        color="danger" 
+                    <IonButton
+                        expand="block"
+                        color="danger"
                         onClick={handleCloseIntervention}
                         className="ion-margin-top"
                     >
@@ -320,7 +391,7 @@ const ManagerInterventionDetails: React.FC = () => {
                             <IonRadioGroup value={selectedAgentId} onIonChange={e => setSelectedAgentId(e.detail.value)}>
                                 {availableAgents.map(agent => (
                                     <IonItem key={agent.id}>
-                                        <IonLabel>{agent.name}</IonLabel>
+                                        <IonLabel>{agent.name} - ({agent.phone})</IonLabel>
                                         <IonRadio slot="start" value={agent.id} />
                                     </IonItem>
                                 ))}
@@ -333,7 +404,6 @@ const ManagerInterventionDetails: React.FC = () => {
                     </IonButton>
                 </IonContent>
             </IonModal>
-            
             {/* --- Modale de Priorité --- */}
             <IonModal isOpen={showPriorityModal} onDidDismiss={() => setShowPriorityModal(false)}>
                 <IonHeader>
@@ -343,7 +413,7 @@ const ManagerInterventionDetails: React.FC = () => {
                     <IonItem>
                         <IonLabel>Nouveau Niveau de Priorité</IonLabel>
                         <IonSelect value={newPriority} onIonChange={e => setNewPriority(e.detail.value)}>
-                            <IonSelectOption value="low">Faible</IonSelectOption>
+                            <IonSelectOption value="low">faible</IonSelectOption>
                             <IonSelectOption value="medium">Moyenne</IonSelectOption>
                             <IonSelectOption value="high">Élevée</IonSelectOption>
                         </IonSelect>

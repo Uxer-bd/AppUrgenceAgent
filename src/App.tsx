@@ -10,7 +10,7 @@ import React from 'react';
 import AgentDashboard from './pages/AgentDashboard';
 import ManagerDashboard from './pages/ManagerDashboard';
 import LoginPage from './pages/Login';
-import ManagerInterventionDetails from './pages/ManagerInterventionDetail';
+import ManagerInterventionDetails from './pages/ManagerInterventionDetails';
 
 
 /* Core CSS required for Ionic components to work properly */
@@ -53,7 +53,11 @@ const App: React.FC = () => (
           <Route exact path="/dashboard" component={AgentDashboard} />
           <Route exact path="/dashboard/manager" component={ManagerDashboard} />
           <Route exact path="/login" component={LoginPage} />
-          <Route exact path="manager/intervention/:id" component={ManagerInterventionDetails} />
+          <Route
+            path="/manager/intervention/:id"
+            exact={true}
+            component={ManagerInterventionDetails}
+          />
           <Route exact path="/">
             <Redirect to="/dashboard" />
           </Route>
