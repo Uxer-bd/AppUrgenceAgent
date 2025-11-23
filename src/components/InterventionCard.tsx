@@ -69,10 +69,6 @@ const InterventionCard: React.FC<InterventionCardProps> = ({ intervention, onSta
               {/* Cas 1 : Juste acceptée, pas de sous-état */}
               {!intervention.subStatus && (
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <IonButton expand="block" onClick={onViewDetails} style={{ flex: 1 }}>
-                    {/* <MapPin size={16} style={{ marginRight: '8px' }} /> */}
-                    Détails
-                  </IonButton>
                   <IonButton expand="block" color="warning" onClick={() => onSubStatusChange(intervention.id, 'en-route')} style={{ flex: 1 }}>
                     {/* <Navigation size={16} style={{ marginRight: '8px' }} /> */}
                     Démarrer la route

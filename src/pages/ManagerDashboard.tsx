@@ -32,7 +32,7 @@ const ManagerDashboard: React.FC = () => {
     const history = useHistory();
     
     // Constantes d'API
-    const API_URL = "https://intervention.tekfaso.com/api/manager/interventions"; 
+    const API_URL = "https://intervention.tekfaso.com/api/manager/interventions";
     const TOKEN = localStorage.getItem('access_token');
     const USER_ROLE = localStorage.getItem('user_role');
 
@@ -43,7 +43,7 @@ const ManagerDashboard: React.FC = () => {
         if (status === 'pending') return 'pending';
         if (status === 'completed' || status === 'closed') return 'completed';
         // accepted, in-progress, started, arrived
-        return 'assigned'; 
+        return 'assigned';
     };
 
     const counts = useMemo(() => {
@@ -127,7 +127,7 @@ const ManagerDashboard: React.FC = () => {
                     </div>
                     <IonButtons slot="end">
                         <IonButton 
-                            onClick={() => history.push('/manager/create-agent')}
+                            onClick={() => history.push('/manager/agent/liste/')}
                             color="light"
                         >
                             <IonIcon icon={personAddOutline} slot="start" />

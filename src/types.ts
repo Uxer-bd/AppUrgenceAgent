@@ -1,0 +1,41 @@
+export interface ApiIntervention {
+  id: number;
+  client_id: number;
+  reference: string;
+  description: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  priority_level: string;
+  status: string;
+  photos: string | null;
+  agent_notes: string | null;
+  manager_notes: string | null;
+  assigned_at: string | null;
+  accepted_at: string | null;
+  started_at: string | null;
+  arrived_at: string | null;
+  completed_at: string | null;
+  closed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  agent_id: number;
+  problem_type: string | null;
+  client: {
+    id: number;
+    name: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    role: string;
+    status: string;
+    latitude: number;
+    longitude: number;
+    availability_status: string;
+    company_name: string | null;
+    address: string | null;
+    created_at: string;
+    updated_at: string;
+  } | null;
+}

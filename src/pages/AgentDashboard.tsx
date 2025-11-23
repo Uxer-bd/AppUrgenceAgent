@@ -14,7 +14,7 @@ const AgentDashboard: React.FC = () => {
   const counts = useMemo(() => ({
     'en-attente': interventions.filter(i => i.status === 'en-attente').length,
     'acceptee': interventions.filter(i => i.status === 'acceptee').length,
-    'terminee': interventions.filter(i => i.status === 'terminee').length
+    'terminee': interventions.filter(i => i.status === 'terminee').length,
   }), [interventions]);
 
   const filteredInterventions = useMemo(() =>

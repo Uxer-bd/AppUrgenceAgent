@@ -7,7 +7,7 @@ import {
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
 import React from 'react';
-import AgentDashboard from './pages/AgentDashboard';
+import AgentDashboard from './pages/AgentDashboard0';
 import ManagerDashboard from './pages/ManagerDashboard';
 import LoginPage from './pages/Login';
 import ManagerInterventionDetails from './pages/ManagerInterventionDetails';
@@ -42,6 +42,8 @@ import '@ionic/react/css/palettes/dark.system.css';
 
 /* Theme variables */
 import './theme/variables.css';
+import AgentCreationForm from './components/AgentCreationForm';
+import AgentListPage from './pages/AgentListePage';
 
 setupIonicReact();
 
@@ -53,13 +55,15 @@ const App: React.FC = () => (
           <Route exact path="/dashboard" component={AgentDashboard} />
           <Route exact path="/dashboard/manager" component={ManagerDashboard} />
           <Route exact path="/login" component={LoginPage} />
+          <Route exact path="/manager/create-agent" component={AgentCreationForm} />
+          <Route exact path="/manager/agent/liste/" component={AgentListPage} />
           <Route
             path="/manager/intervention/:id"
             exact={true}
             component={ManagerInterventionDetails}
           />
           <Route exact path="/">
-            <Redirect to="/dashboard" />
+            <Redirect to="/login" />
           </Route>
         </IonRouterOutlet>
       </IonTabs>

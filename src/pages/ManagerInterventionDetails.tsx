@@ -71,8 +71,9 @@ const ManagerInterventionDetails: React.FC = () => {
     // prendre un utilisateur unique
     const USER_DETAIL_API_BASE_URL = "https://intervention.tekfaso.com/api/users";
     // CORRECTION 1: Nouvelle URL pour les agents disponibles
-    const AGENT_LIST_API_URL = "https://intervention.tekfaso.com/api/users?role=agent&status=active";
-    
+    const AGENT_LIST_API_URL = "https://intervention.tekfaso.com/api/users?role=agent&availability_status=available&per_page=15";
+    // const AGENT_LIST_API_URL = "https://intervention.tekfaso.com/api/manager/agents/available";
+
     const TOKEN = localStorage.getItem('access_token');
     const USER_ROLE = localStorage.getItem('user_role');
 
@@ -129,10 +130,10 @@ const ManagerInterventionDetails: React.FC = () => {
 
             const responseData = await interventionResponse.json();
             const rawData = responseData.intervention || responseData.data || responseData; 
-            
+
             // Déterminer l'objet agent initial
             let assignedAgentData: AssignedAgent | null = rawData.assigned_agent || rawData.agent || null;
-            
+
             // VÉRIFICATION CRITIQUE: Si assigned_agent est null mais agent_id est présent
             if (rawData.agent_id && assignedAgentData === null) {
                 // Effectuer l'appel API pour obtenir les détails de l'agent
@@ -198,7 +199,7 @@ const ManagerInterventionDetails: React.FC = () => {
 
             present({ message: `Agent ${endpoint === 'reassign' ? 'réaffecté' : 'affecté'} avec succès !`, duration: 2000, color: 'success' });
             setShowAssignModal(false);
-            fetchData(true); 
+            fetchData(true);
 
         } catch (error: unknown) {
             const message = (error as Error).message; // Utilisation de const pour la variable message
@@ -207,7 +208,7 @@ const ManagerInterventionDetails: React.FC = () => {
             setIsLoading(false);
         }
     };
-    
+
     const handleSetPriority = async () => {
         if (!newPriority) return;
 
@@ -217,16 +218,16 @@ const ManagerInterventionDetails: React.FC = () => {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${TOKEN}` 
+                    'Authorization': `Bearer ${TOKEN}`
                 },
                 body: JSON.stringify({ priority_level: newPriority })
             });
 
             if (!response.ok) throw new Error('Échec du changement de priorité.');
-            
+
             present({ message: 'Priorité mise à jour !', duration: 2000, color: 'success' });
             setShowPriorityModal(false);
-            fetchData(true); 
+            fetchData(true);
 
         } catch (error: unknown) {
             const message = (error as Error).message; // Utilisation de const pour la variable message
@@ -238,20 +239,41 @@ const ManagerInterventionDetails: React.FC = () => {
 
     const handleCloseIntervention = async () => {
         if (!window.confirm("Êtes-vous sûr de vouloir CLÔTURER cette intervention ? Cette action est irréversible.")) return;
-        
+
         setIsLoading(true);
         try {
+
+            const requestBody = {
+                // Ces valeurs sont nécessaires car l'API les attend
+                closure_reason: "Clôturé manuellement par le manager.",
+                manager_notes: "Vérification et validation de l'état de l'intervention."
+            };
+
             const response = await fetch(`${API_BASE_URL}/${id}/close`, {
-                method: 'POST', 
-                headers: { 
-                    'Authorization': `Bearer ${TOKEN}` 
-                }
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${TOKEN}`,
+                },
+                body: JSON.stringify(requestBody),
             });
 
-            if (!response.ok) throw new Error('Échec de la fermeture de l\'intervention.');
-            
+            // if (!response.ok) throw new Error('Échec de la fermeture de l\'intervention.');
+            if (!response.ok) {
+            // Lecture détaillée de la réponse d'erreur
+            let errorMessage = 'Échec de la fermeture de l\'intervention.';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorData.errors?.closure_reason?.[0] || 'Erreur inconnue de l\'API.';
+            } catch {
+                // Si la lecture JSON échoue (ex: 500 Internal Server Error)
+                errorMessage = `Erreur Serveur: ${response.status} ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+        }
+
             present({ message: 'Intervention clôturée avec succès !', duration: 2000, color: 'success' });
-            fetchData(true); 
+            fetchData(true);
 
         } catch (error: unknown) {
             const message = (error as Error).message; // Utilisation de const pour la variable message
@@ -346,7 +368,7 @@ const ManagerInterventionDetails: React.FC = () => {
                         {/* Détails supplémentaires de l'agent : Téléphone */}
                         {assignedAgent && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <p style={{ margin: 0 }}>Tél: **{assignedAgent.phone}**</p>
+                                <p style={{ margin: 0 }}>Tél : {assignedAgent.phone}</p>
                                 <IonButton
                                     color="light"
                                     fill="clear"
