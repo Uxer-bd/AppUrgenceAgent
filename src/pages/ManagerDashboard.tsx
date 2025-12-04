@@ -6,7 +6,8 @@ import {
     IonNote,
 } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
-import { personAddOutline, refreshOutline } from 'ionicons/icons'; 
+import { logOutSharp, personCircleSharp, refreshOutline } from 'ionicons/icons'; 
+import { useAuth } from '../components/logout';
 
 // Définition des types basés sur votre API Manager
 type ManagerTab = 'pending' | 'assigned' | 'completed';
@@ -20,7 +21,7 @@ interface Intervention {
     // Les statuts API réels
     status: 'pending' | 'accepted' | 'in-progress' | 'completed' | 'closed'; 
     created_at: string;
-    client: { name: string; }; 
+    client_first_name: string; 
     assigned_agent?: { name: string; id: number; } | null;
 }
 
@@ -109,6 +110,7 @@ const ManagerDashboard: React.FC = () => {
         }
     };
 
+    const { logout } = useAuth();
 
     // --- RENDU DU COMPOSANT ---
 
@@ -125,13 +127,22 @@ const ManagerDashboard: React.FC = () => {
                         <IonTitle style={{ fontSize: '1.2em', padding: 0 }}>Gestion des Interventions</IonTitle>
                         <p style={{ margin: '0', fontSize: '0.9em', color: 'rgba(255,255,255,0.8)' }}>Tableau de Bord Manager</p>
                     </div>
-                    <IonButtons slot="end">
+                    <IonButtons slot="end"  style={{ border : '#ffff' }}>
                         <IonButton 
                             onClick={() => history.push('/manager/agent/liste/')}
                             color="light"
                         >
-                            <IonIcon icon={personAddOutline} slot="start" />
-                            Agent
+                            <IonIcon icon={personCircleSharp} slot="start" />
+                            Mes Agents
+                        </IonButton>
+                    </IonButtons>
+                    <IonButtons slot="end" style={{ background : '#c40000ff' }}>
+                        <IonButton 
+                            onClick={() => logout()}
+                            color="light"
+                        >
+                            <IonIcon icon={ logOutSharp } slot="start" />
+                            Deconnexion
                         </IonButton>
                     </IonButtons>
                 </IonToolbar>
@@ -183,7 +194,7 @@ const ManagerDashboard: React.FC = () => {
                                             {inter.priority_level.toUpperCase()}
                                         </IonNote>
                                     </h2>
-                                    <p>Client: **{inter.client.name}**</p> 
+                                    <p>Client: **{inter.client_first_name}**</p> 
                                     <p>Assigné à: **{inter.assigned_agent ? inter.assigned_agent.name : 'Non assigné'}**</p>
                                     <p style={{ marginTop: '5px', color: '#888', fontSize: '0.85em' }}>
                                         Statut API: {inter.status.toUpperCase()}

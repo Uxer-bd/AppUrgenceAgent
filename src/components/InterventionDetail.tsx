@@ -10,8 +10,8 @@ import { call, location, informationCircle, close } from 'ionicons/icons';
 interface ModalProps {
   intervention: Intervention | null;
   onClose: () => void;
-  onStatusChange: (id: number, newStatus: 'acceptee' | 'terminee') => void;
-  onMarkAsTerminated: (id: number, status: 'terminee') => void;
+  onStatusChange: (id: number, newStatus: 'accepted' | 'completed') => void;
+  onMarkAsTerminated: (id: number, status: 'completed') => void;
 }
 
 const InterventionDetail: React.FC<ModalProps> = ({ intervention, onClose, onMarkAsTerminated, onStatusChange }) => {
@@ -82,7 +82,7 @@ const InterventionDetail: React.FC<ModalProps> = ({ intervention, onClose, onMar
       </IonContent>
 
       {/* Footer Buttons */}
-      { intervention.status === 'acceptee' && (
+      { intervention.status === 'accepted' && (
         <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div style={{ display: 'flex', gap: '10px' }}>
             <IonButton expand="block" color="success" onClick={handleCall} style={{ flex: 1 }}>
@@ -94,14 +94,14 @@ const InterventionDetail: React.FC<ModalProps> = ({ intervention, onClose, onMar
               Navigation
             </IonButton>
           </div>
-          <IonButton expand="block" color="success" onClick={() => {onMarkAsTerminated(intervention.id, 'terminee'); onClose();}}>
+          <IonButton expand="block" color="success" onClick={() => {onMarkAsTerminated(intervention.id, 'completed'); onClose();}}>
             Marquer comme terminée
           </IonButton>
         </div>
         )}
-      {intervention.status === 'en-attente' && (
+      {intervention.status === 'assigned' && (
         <div style={{ display: 'flex', gap: '10px' }}>
-          <IonButton expand="block" onClick={() => {onStatusChange(intervention.id, 'acceptee'); onClose()}} style={{ flex: 1 }}>
+          <IonButton expand="block" onClick={() => {onStatusChange(intervention.id, 'accepted'); onClose()}} style={{ flex: 1 }}>
             Accepter
           </IonButton>
         </div>

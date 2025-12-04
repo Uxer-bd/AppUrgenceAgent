@@ -49,7 +49,7 @@ export const mockInterventions: Intervention[] = [
     id: 5,
     clientName: 'Garcia Chloe',
     status: 'acceptee',
-    subStatus: 'arrive',
+    subStatus: 'arrived',
     description: 'Le tableau électrique fait un bruit étrange.',
     createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
     address: '55 Boulevard de la Villette, 75010 Paris',

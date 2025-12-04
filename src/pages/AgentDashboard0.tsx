@@ -1,3 +1,5 @@
+// src/pages/AgentDashboard.tsx
+
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   IonContent,
@@ -20,23 +22,38 @@ import InterventionCard from '../components/InterventionCard';
 import InterventionDetail from '../components/InterventionDetail';
 import { Intervention } from '../type';
 
+interface ApiIntervention {
+  id: number;
+  description: string;
+  address: string;
+  created_at: string;
+  client: { name: string; phone: string } | null;
+  latitude: number | null;
+  longitude: number | null;
+  status: 'assigned' | 'accepted' | 'in_progress' | 'completed';
+}
+
+interface ApiResponse {
+  data: ApiIntervention[];
+  message?: string;
+}
+
 const AgentDashboard: React.FC = () => {
   const [interventions, setInterventions] = useState<Intervention[]>([]);
   const [selectedTab, setSelectedTab] =
-    useState<'en-attente' | 'acceptee' | 'terminee'>('en-attente');
+    useState<'pending' | 'accepted_group' | 'completed'>('pending');
+
   const [selectedIntervention, setSelectedIntervention] =
     useState<Intervention | null>(null);
 
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [present] = useIonToast();
 
   const API_URL = 'https://intervention.tekfaso.com/api/agent/interventions';
   const TOKEN = localStorage.getItem('access_token');
 
-  // -----------------------------------------------------------
-  // 🔄 1) Convertit les données API -> format InterventionCard
-  // -----------------------------------------------------------
-  const mapApiToIntervention = (api: any): Intervention => ({
+  // ------------------------ MAP API → APP ------------------------
+  const mapApiToIntervention = (api: ApiIntervention): Intervention => ({
     id: api.id,
     description: api.description,
     address: api.address,
@@ -47,45 +64,26 @@ const AgentDashboard: React.FC = () => {
       api.latitude && api.longitude
         ? { lat: api.latitude, lng: api.longitude }
         : undefined,
-
-    status:
-      api.status === 'pending'
-        ? 'en-attente'
-        : api.status === 'completed' || api.status === 'closed'
-        ? 'terminee'
-        : 'acceptee',
-
-    subStatus:
-      api.status === 'in-progress'
-        ? 'en-route'
-        : api.status === 'arrived'
-        ? 'arrive'
-        : undefined,
+    status: api.status
   });
 
-  // -----------------------------------------------------------
-  // 🔄 2) Récupération API
-  // -----------------------------------------------------------
+  // ------------------------ FETCH ------------------------
   const fetchInterventions = async () => {
     setIsLoading(true);
     try {
       const response = await fetch(API_URL, {
-        method: 'GET',
         headers: {
           Accept: 'application/json',
           Authorization: `Bearer ${TOKEN}`,
         },
       });
 
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Erreur lors du chargement.');
-      }
+      const data: ApiResponse = await response.json();
+      if (!response.ok) throw new Error(data.message ?? 'Erreur serveur');
 
-      const mapped = data.data.map(mapApiToIntervention);
-      setInterventions(mapped);
-    } catch (error: any) {
-      present({ message: error.message, duration: 2000, color: 'danger' });
+      setInterventions(data.data.map(mapApiToIntervention));
+    } catch (err) {
+      present({ message: (err as Error).message, duration: 2000, color: 'danger' });
     } finally {
       setIsLoading(false);
     }
@@ -95,30 +93,42 @@ const AgentDashboard: React.FC = () => {
     fetchInterventions();
   }, []);
 
-  // -----------------------------------------------------------
-  // 🧮 3) Filtrage et compteurs
-  // -----------------------------------------------------------
+  // ------------------------ COUNTS ------------------------
   const counts = useMemo(
     () => ({
-      'en-attente': interventions.filter((i) => i.status === 'en-attente').length,
-      acceptee: interventions.filter((i) => i.status === 'acceptee').length,
-      terminee: interventions.filter((i) => i.status === 'terminee').length,
+      pending: interventions.filter((i) => i.status === 'assigned').length,
+      accepted_group: interventions.filter(
+        (i) => i.status === 'accepted' || i.status === 'in_progress'
+      ).length,
+      completed: interventions.filter((i) => i.status === 'completed').length,
     }),
     [interventions]
   );
 
-  const filteredInterventions = useMemo(
-    () => interventions.filter((i) => i.status === selectedTab),
-    [interventions, selectedTab]
-  );
+  // ------------------------ FILTERED LIST ------------------------
+  const filteredInterventions = useMemo(() => {
+    switch (selectedTab) {
+      case 'pending':
+        return interventions.filter((i) => i.status === 'assigned');
 
-  // -----------------------------------------------------------
-  // 🔧 4) Fonction générique API pour changer le statut
-  // -----------------------------------------------------------
+      case 'accepted_group':
+        return interventions.filter(
+          (i) => i.status === 'accepted' || i.status === 'in_progress'
+        );
+
+      case 'completed':
+        return interventions.filter((i) => i.status === 'completed');
+
+      default:
+        return interventions;
+    }
+  }, [interventions, selectedTab]);
+
+  // ------------------------ UPDATE API ------------------------
   const updateStatusOnServer = async (
     id: number,
-    action: 'accept' | 'start' | 'arrived' | 'complete',
-    payload?: Record<string, any>
+    action: 'accept' | 'start' | 'complete',
+    payload?: Record<string, unknown>
   ) => {
     try {
       const response = await fetch(
@@ -135,26 +145,18 @@ const AgentDashboard: React.FC = () => {
       );
 
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Erreur API');
-      }
+      if (!response.ok) throw new Error(data.message ?? 'Action impossible');
 
       present({ message: data.message, duration: 2000, color: 'success' });
       return true;
-    } catch (error: any) {
-      present({ message: error.message, duration: 2000, color: 'danger' });
+    } catch (err) {
+      present({ message: (err as Error).message, duration: 2000, color: 'danger' });
       return false;
     }
   };
 
-  // -----------------------------------------------------------
-  // 🔧 5) Mise à jour locale (UI)
-  // -----------------------------------------------------------
-  const updateInterventionLocal = (
-    id: number,
-    changes: Partial<Intervention>
-  ) => {
+  // ------------------------ UPDATE LOCAL ------------------------
+  const updateInterventionLocal = (id: number, changes: Partial<Intervention>) => {
     setInterventions((prev) =>
       prev.map((i) => (i.id === id ? { ...i, ...changes } : i))
     );
@@ -164,58 +166,37 @@ const AgentDashboard: React.FC = () => {
     }
   };
 
-  // -----------------------------------------------------------
-  // 🟢 6) Handle Status principal (acceptée / terminée)
-  // -----------------------------------------------------------
-  const handleStatusUpdate = async (id: number, newStatus: Intervention['status']) => {
+  // ------------------------ LOGIQUE DES ACTIONS ------------------------
+  const handleStatusUpdate = async (id: number, newStatus: string) => {
     let success = false;
 
-    if (newStatus === 'acceptee') {
-      success = await updateStatusOnServer(id, 'accept', {
-        estimated_arrival_time: 15,
+    switch (newStatus) {
+      case 'accepted':
+        success = await updateStatusOnServer(id, 'accept', {
+          estimated_arrival_time: 15,
+        });
+        break;
+
+      case 'in_progress':
+        success = await updateStatusOnServer(id, 'start');
+        break;
+
+      case 'completed':
+        success = await updateStatusOnServer(id, 'complete', {
+          work_description: "string",
+          resolution_notes: "string",
+          parts_used: "string",
+        });
+        break;
+    }
+
+    if (success)
+      updateInterventionLocal(id, {
+        status: newStatus as 'assigned' | 'accepted' | 'in_progress' | 'completed',
       });
-    }
-
-    if (newStatus === 'terminee') {
-      success = await updateStatusOnServer(id, 'complete');
-    }
-
-    if (success) updateInterventionLocal(id, { status: newStatus });
   };
 
-  // -----------------------------------------------------------
-  // 🟠 7) Handle Sub-Status (en route / arrivé)
-  // -----------------------------------------------------------
-  const handleSubStatusUpdate = async (
-    id: number,
-    newSubStatus: NonNullable<Intervention['subStatus']>
-  ) => {
-    let success = false;
-
-    if (newSubStatus === 'en-route') {
-      success = await updateStatusOnServer(id, 'start');
-    }
-
-    if (newSubStatus === 'arrive') {
-      success = await updateStatusOnServer(id, 'arrived');
-    }
-
-    if (success) updateInterventionLocal(id, { subStatus: newSubStatus });
-  };
-
-  // -----------------------------------------------------------
-  // 🔴 8) Handle Terminé depuis le modal
-  // -----------------------------------------------------------
-  const handleMarkTerminated = async (id: number) => {
-    const ok = await updateStatusOnServer(id, 'complete');
-    if (ok) {
-      updateInterventionLocal(id, { status: 'terminee', subStatus: undefined });
-    }
-  };
-
-  // -----------------------------------------------------------
-  // 🖥️ 9) UI
-  // -----------------------------------------------------------
+  // ------------------------ UI ------------------------
   return (
     <IonPage>
       <IonHeader>
@@ -225,7 +206,6 @@ const AgentDashboard: React.FC = () => {
               Rafraîchir
             </IonButton>
           </IonButtons>
-
           <IonTitle>Interventions Électriques</IonTitle>
         </IonToolbar>
 
@@ -233,27 +213,25 @@ const AgentDashboard: React.FC = () => {
           <IonSegment
             value={selectedTab}
             onIonChange={(e) =>
-              setSelectedTab(e.detail.value as 'en-attente' | 'acceptee' | 'terminee')
+              setSelectedTab(e.detail.value as 'pending' | 'accepted_group' | 'completed')
             }
           >
-            <IonSegmentButton value="en-attente">
+            <IonSegmentButton value="pending">
               <IonLabel>En attente</IonLabel>
-              {counts['en-attente'] > 0 && (
-                <IonBadge color="danger">{counts['en-attente']}</IonBadge>
-              )}
+              {counts.pending > 0 && <IonBadge color="danger">{counts.pending}</IonBadge>}
             </IonSegmentButton>
 
-            <IonSegmentButton value="acceptee">
+            <IonSegmentButton value="accepted_group">
               <IonLabel>Acceptées</IonLabel>
-              {counts.acceptee > 0 && (
-                <IonBadge color="success">{counts.acceptee}</IonBadge>
+              {counts.accepted_group > 0 && (
+                <IonBadge color="warning">{counts.accepted_group}</IonBadge>
               )}
             </IonSegmentButton>
 
-            <IonSegmentButton value="terminee">
+            <IonSegmentButton value="completed">
               <IonLabel>Terminées</IonLabel>
-              {counts.terminee > 0 && (
-                <IonBadge color="medium">{counts.terminee}</IonBadge>
+              {counts.completed > 0 && (
+                <IonBadge color="success">{counts.completed}</IonBadge>
               )}
             </IonSegmentButton>
           </IonSegment>
@@ -264,7 +242,7 @@ const AgentDashboard: React.FC = () => {
         <IonLoading isOpen={isLoading} message="Chargement..." />
 
         {filteredInterventions.length === 0 && !isLoading ? (
-          <div style={{ textAlign: 'center', color: '#777', marginTop: '40px' }}>
+          <div style={{ textAlign: 'center', marginTop: '40px', color: '#777' }}>
             Aucune intervention trouvée.
           </div>
         ) : (
@@ -274,7 +252,6 @@ const AgentDashboard: React.FC = () => {
               intervention={inter}
               onViewDetails={() => setSelectedIntervention(inter)}
               onStatusChange={handleStatusUpdate}
-              onSubStatusChange={handleSubStatusUpdate}
             />
           ))
         )}
@@ -288,7 +265,7 @@ const AgentDashboard: React.FC = () => {
           intervention={selectedIntervention}
           onClose={() => setSelectedIntervention(null)}
           onStatusChange={handleStatusUpdate}
-          onMarkAsTerminated={handleMarkTerminated}
+          onMarkAsTerminated={(id) => handleStatusUpdate(id, 'completed')}
         />
       </IonModal>
     </IonPage>

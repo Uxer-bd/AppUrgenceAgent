@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
     IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonList, IonItem, 
     IonLabel, IonSpinner, IonText, useIonToast, IonIcon, IonButtons, 
-    IonButton, IonNote 
+    IonButton, IonNote, IonModal, IonAlert, IonRefresher, IonRefresherContent
 } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
-import { arrowBackOutline, checkmarkCircle, closeCircle, timeOutline, personAddOutline } from 'ionicons/icons';
+import { arrowBackOutline, checkmarkCircle, closeCircle, timeOutline, personAddOutline, createOutline, trashOutline, refreshOutline } from 'ionicons/icons';
+
+import AgentEditModal from '../components/AgentEditModal';
 
 // --- Interface de l'Agent (Basée sur image_ad2782.png) ---
 interface Agent {
@@ -27,15 +29,26 @@ const AgentListPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [present] = useIonToast();
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+    const [showDeleteAlert, setShowDeleteAlert] = useState<Agent | null>(null);
 
     // --- Configuration API ---
     // Nous supposons que GET /api/users retourne la liste de tous les utilisateurs (agents et managers)
     const API_URL = "https://intervention.tekfaso.com/api/users?role=agent&per_page=15";
+    const API_URL_1 = "https://intervention.tekfaso.com/api/users";
     const TOKEN = localStorage.getItem('access_token');
 
-    const fetchAgents = async () => {
+    const fetchAgents = useCallback(async (refresh = false) => {
+
+        if (!refresh) setLoading(true); else setIsRefreshing(true);
+        setError(null);
+
         if (!TOKEN) {
             setError("Erreur d'authentification. Session expirée.");
+            setLoading(false);
+            setIsRefreshing(false);
             return;
         }
 
@@ -74,11 +87,17 @@ const AgentListPage: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+
+});
 
     useEffect(() => {
         fetchAgents();
     }, []);
+
+    const handleRefresh = (event: CustomEvent) => {
+    fetchAgents(true).then(() => event.detail.complete());
+    };
+    
     
     // Fonction utilitaire pour le style du statut de disponibilité
     const getAvailabilityStatusStyle = (status: string) => {
@@ -92,6 +111,37 @@ const AgentListPage: React.FC = () => {
             default:
                 return { color: 'light', icon: closeCircle, text: 'Non spécifié' };
         }
+    };
+
+    const handleDeleteAgent = async (agentId: number) => {
+        // Endpoint supposé pour la suppression (souvent DELETE /api/users/{id})
+        const deleteEndpoint = `${API_URL_1}/${agentId}`; 
+        
+        try {
+            const response = await fetch(deleteEndpoint, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${TOKEN}` },
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `Échec de la suppression: ${response.status}`);
+            }
+
+            present({ message: "Agent supprimé avec succès !", duration: 2000, color: 'success' });
+            fetchAgents(true); // Rafraîchir la liste
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Erreur inconnue lors de la suppression.";
+            present({ message, duration: 3000, color: 'danger' });
+        }
+    };
+
+    const handleAgentUpdated = (updatedAgent: Agent) => {
+        setAgents(prevAgents => 
+            prevAgents.map(agent => (agent.id === updatedAgent.id ? updatedAgent : agent))
+        );
+        setSelectedAgent(null); // Fermer la modale
+        present({ message: `${updatedAgent.name} mis à jour.`, duration: 2000, color: 'success' });
     };
     
     if (loading) {
@@ -116,7 +166,7 @@ const AgentListPage: React.FC = () => {
                 </IonHeader>
                 <IonContent className="ion-padding ion-text-center">
                     <IonText color="danger"><p>Erreur: {error}</p></IonText>
-                    <IonButton onClick={fetchAgents}>Réessayer</IonButton>
+                    <IonButton onClick={() => { void fetchAgents(); }}>Réessayer</IonButton>
                 </IonContent>
             </IonPage>
         );
@@ -133,6 +183,9 @@ const AgentListPage: React.FC = () => {
                     </IonButtons>
                     <IonTitle>Gestion des Agents ({agents.length})</IonTitle>
                     <IonButtons slot="end">
+                        <IonButton onClick={() => fetchAgents(true)} disabled={isRefreshing}>
+                            <IonIcon icon={refreshOutline} />
+                        </IonButton>
                         {/* Bouton pour aller à la création d'agent */}
                         <IonButton routerLink="/manager/create-agent">
                             <IonIcon icon={personAddOutline} slot="start" />
@@ -142,6 +195,17 @@ const AgentListPage: React.FC = () => {
                 </IonToolbar>
             </IonHeader>
             <IonContent fullscreen>
+                <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
+                    <IonRefresherContent></IonRefresherContent>
+                </IonRefresher>
+
+                { error && (
+                    <div className="ion-padding ion-text-center">
+                        <IonText color="danger"><p>Erreur de chargement: {error}</p></IonText>
+                        <IonButton onClick={() => fetchAgents(true)}>Réessayer</IonButton>
+                    </div>
+                )}
+
                 {agents.length === 0 ? (
                     <div className="ion-padding ion-text-center">
                         <IonText color="medium"><p>Aucun agent enregistré dans le système.</p></IonText>
@@ -155,9 +219,10 @@ const AgentListPage: React.FC = () => {
                             return (
                                 <IonItem 
                                     key={agent.id} 
-                                    detail={true} 
+                                    // detail={true} 
                                     // Vous pouvez ajouter un lien vers la page de détails de l'agent ici
                                     // routerLink={`/admin/agent/${agent.id}`}
+                                    lines='full'
                                 >
                                     <IonLabel>
                                         <h2>{agent.name}</h2>
@@ -176,12 +241,62 @@ const AgentListPage: React.FC = () => {
                                     <IonText slot="end" color={availability.color}>
                                         <small>{availability.text}</small>
                                     </IonText>
+
+                                    <IonButtons slot="end">
+                                        <IonButton
+                                            color="primary"
+                                            onClick={() => setSelectedAgent(agent)}
+                                        >
+                                            <IonIcon icon={createOutline} slot="icon-only" />
+                                        </IonButton>
+
+                                        <IonButton
+                                            color="danger"
+                                            onClick={() => setShowDeleteAlert(agent)}
+                                        >
+                                            <IonIcon icon={trashOutline} slot="icon-only" />
+                                        </IonButton>
+                                    </IonButtons>
+
                                 </IonItem>
                             );
                         })}
                     </IonList>
                 )}
             </IonContent>
+
+            {/* Modale d'édition */}
+            <IonModal
+                isOpen={!!selectedAgent}
+                onDidDismiss={() => setSelectedAgent(null)}
+            >
+                {selectedAgent && (
+                    <AgentEditModal
+                        agent={selectedAgent}
+                        onClose={() => setSelectedAgent(null)}
+                        onAgentUpdated={handleAgentUpdated}
+                    />
+                )}
+            </IonModal>
+
+            <IonAlert
+                isOpen={!!showDeleteAlert}
+                onDidDismiss={() => setShowDeleteAlert(null)}
+                header={`Supprimer ${showDeleteAlert?.name}?`}
+                message="Êtes-vous sûr de vouloir supprimer cet agent ? Cette action est irréversible."
+                buttons={[
+                    { text: 'Annuler', role: 'cancel' },
+                    { 
+                        text: 'Supprimer', 
+                        handler: () => {
+                            if (showDeleteAlert) {
+                                handleDeleteAgent(showDeleteAlert.id);
+                            }
+                        },
+                        cssClass: 'alert-button-danger'
+                    }
+                ]}
+            />
         </IonPage>
     );
 };

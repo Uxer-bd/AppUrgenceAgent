@@ -38,6 +38,8 @@ interface Intervention {
     description: string;
     address: string;
     client: ClientData;
+    client_first_name : string;
+    client_phone : string;
     agent_id: number;
     status: 'pending' | 'accepted' | 'in-progress' | 'completed' | 'closed';
     priority_level: 'low' | 'medium' | 'high';
@@ -183,8 +185,8 @@ const ManagerInterventionDetails: React.FC = () => {
 
         setIsLoading(true);
         try {
-            const endpoint = intervention?.agent ? 'reassign' : 'assign';
-            const method = intervention?.agent ? 'PUT' : 'POST';
+            const endpoint = intervention?.agent ? 'assign' : 'assign';
+            const method = intervention?.agent ? 'POST' : 'POST';
 
             const response = await fetch(`${API_BASE_URL}/${id}/${endpoint}`, {
                 method: method,
@@ -195,9 +197,10 @@ const ManagerInterventionDetails: React.FC = () => {
                 body: JSON.stringify({ agent_id: selectedAgentId })
             });
 
+
             if (!response.ok) throw new Error('Échec de l\'affectation de l\'agent.');
 
-            present({ message: `Agent ${endpoint === 'reassign' ? 'réaffecté' : 'affecté'} avec succès !`, duration: 2000, color: 'success' });
+            present({ message: `Agent ${endpoint === 'assign' ? 'réaffecté' : 'affecté'} avec succès !`, duration: 2000, color: 'success' });
             setShowAssignModal(false);
             fetchData(true);
 
@@ -338,9 +341,8 @@ const ManagerInterventionDetails: React.FC = () => {
                 <IonCard style={{ marginBottom: '5px' }}>
                     <IonCardHeader><IonTitle size="large">Détails de l'intervention</IonTitle></IonCardHeader>
                     <IonCardContent>
-                        <IonItem lines="none"><IonLabel>Client : {intervention.client.name}</IonLabel></IonItem>
-                        <IonItem lines="none"><IonLabel>Téléphone : {intervention.client.phone}</IonLabel></IonItem>
-                        <IonItem lines="none"><IonLabel>Adresse Client : {intervention.client.address}</IonLabel></IonItem>
+                        <IonItem lines="none"><IonLabel>Client : {intervention.client_first_name}</IonLabel></IonItem>
+                        <IonItem lines="none"><IonLabel>Téléphone : {intervention.client_phone}</IonLabel></IonItem>
                         <IonItem lines="none"><IonLabel>Lieu Intervention : {intervention.address}</IonLabel></IonItem>
                         <IonItem lines="none" className="ion-margin-top"><IonLabel position="stacked">Description du problème:</IonLabel></IonItem>
                         <p className="ion-padding-start">{intervention.description}</p>
@@ -397,7 +399,7 @@ const ManagerInterventionDetails: React.FC = () => {
                 )}
                 {isClosed && (
                     <IonNote color="success" style={{ display: 'block', textAlign: 'center', fontSize: '1.2em' }}>
-                        Cette intervention est **Clôturée** (ou {intervention.status.toUpperCase()}).
+                        Cette intervention est Clôturée.
                     </IonNote>
                 )}
             </IonContent>
