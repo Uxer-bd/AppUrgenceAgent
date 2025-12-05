@@ -20,7 +20,7 @@ const InterventionDetail: React.FC<ModalProps> = ({ intervention, onClose, onMar
   const timeAgo = formatDistanceToNow(new Date(intervention.createdAt), { addSuffix: true, locale: fr });
 
   const handleCall = () => {
-    AppLauncher.openUrl({ url: `tel:${intervention.phone}` });
+    AppLauncher.openUrl({ url: `tel:${intervention.client_phone}` });
   };
 
   const handleNavigation = () => {
@@ -49,7 +49,7 @@ const InterventionDetail: React.FC<ModalProps> = ({ intervention, onClose, onMar
         {/* Header Info */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
-            <h2 style={{ margin: '0', fontWeight: 'bold' }}>{intervention.clientName}</h2>
+            <h2 style={{ margin: '0', fontWeight: 'bold' }}>{intervention.client_first_name}</h2>
             <IonLabel color="primary">Priorité Normale</IonLabel>
           </div>
           <span style={{ color: '#666', fontSize: '0.9em' }}>{timeAgo}</span>
@@ -68,7 +68,7 @@ const InterventionDetail: React.FC<ModalProps> = ({ intervention, onClose, onMar
             <IonIcon icon={call} style={{ marginRight: '16px', color: '#666', fontSize: '24px' }} />
             <div>
               <strong style={{ display: 'block' }}>Téléphone</strong>
-              <span>{intervention.phone}</span>
+              <span>{intervention.client_phone}</span>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -82,7 +82,7 @@ const InterventionDetail: React.FC<ModalProps> = ({ intervention, onClose, onMar
       </IonContent>
 
       {/* Footer Buttons */}
-      { intervention.status === 'accepted' && (
+      { intervention.status === 'accepted' ||  intervention.status === 'in_progress' && (
         <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div style={{ display: 'flex', gap: '10px' }}>
             <IonButton expand="block" color="success" onClick={handleCall} style={{ flex: 1 }}>
@@ -91,7 +91,7 @@ const InterventionDetail: React.FC<ModalProps> = ({ intervention, onClose, onMar
             </IonButton>
             <IonButton expand="block" onClick={handleNavigation} style={{ flex: 1 }}>
               <IonIcon icon={location} style={{ marginRight: '8px', fontSize: '16px' }} />
-              Navigation
+              Se rendre sur place
             </IonButton>
           </div>
           <IonButton expand="block" color="success" onClick={() => {onMarkAsTerminated(intervention.id, 'completed'); onClose();}}>

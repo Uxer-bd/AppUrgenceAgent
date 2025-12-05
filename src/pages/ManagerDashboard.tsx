@@ -112,7 +112,25 @@ const ManagerDashboard: React.FC = () => {
 
     const { logout } = useAuth();
 
-    // --- RENDU DU COMPOSANT ---
+    const getStatusLabel = (status:string) => {
+        switch (status) {
+        case 'assigned': return 'Assignée';
+        case 'pending': return 'Non Assignée';
+        case 'accepted': return 'Acceptée';
+        case 'in_progress': return 'En intervention';
+        case 'completed': return 'Terminée';
+        default: return status;
+        }
+    };
+
+    // const getStatusColor = (status:string) => {
+    //     switch (status) {
+    //     case 'assigned': return 'danger';
+    //     case 'accepted': return 'warning';
+    //     case 'in_progress': return 'secondary';
+    //     case 'completed': return 'success';
+    //     }
+    // };
 
     return (
         <IonPage>
@@ -194,10 +212,10 @@ const ManagerDashboard: React.FC = () => {
                                             {inter.priority_level.toUpperCase()}
                                         </IonNote>
                                     </h2>
-                                    <p>Client: **{inter.client_first_name}**</p> 
-                                    <p>Assigné à: **{inter.assigned_agent ? inter.assigned_agent.name : 'Non assigné'}**</p>
-                                    <p style={{ marginTop: '5px', color: '#888', fontSize: '0.85em' }}>
-                                        Statut API: {inter.status.toUpperCase()}
+                                    <p>Client : {inter.client_first_name}</p> 
+                                    <p>Assigné à : {inter.assigned_agent ? inter.assigned_agent.name : 'Non assigné'}</p>
+                                    <p style={{ marginTop: '5px', color: '#018101ff', fontSize: '0.85em' }}>
+                                        Statut : {getStatusLabel(inter.status)}
                                     </p>
                                 </IonLabel>
                                 

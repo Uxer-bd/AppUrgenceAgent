@@ -41,7 +41,7 @@ interface Intervention {
     client_first_name : string;
     client_phone : string;
     agent_id: number;
-    status: 'pending' | 'accepted' | 'in-progress' | 'completed' | 'closed';
+    status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'closed' | 'assigned';
     priority_level: 'low' | 'medium' | 'high';
     created_at: string;
     agent?: AssignedAgent | null;
@@ -296,7 +296,7 @@ const ManagerInterventionDetails: React.FC = () => {
         );
     }
     
-    const isClosed = intervention.status === 'completed' || intervention.status === 'closed';
+    const isClosed = intervention.status === 'completed' || intervention.status === 'closed' || intervention.status === 'in_progress';
     const assignedAgent = intervention.agent;
     
     return (
@@ -344,8 +344,8 @@ const ManagerInterventionDetails: React.FC = () => {
                         <IonItem lines="none"><IonLabel>Client : {intervention.client_first_name}</IonLabel></IonItem>
                         <IonItem lines="none"><IonLabel>Téléphone : {intervention.client_phone}</IonLabel></IonItem>
                         <IonItem lines="none"><IonLabel>Lieu Intervention : {intervention.address}</IonLabel></IonItem>
-                        <IonItem lines="none" className="ion-margin-top"><IonLabel position="stacked">Description du problème:</IonLabel></IonItem>
-                        <p className="ion-padding-start">{intervention.description}</p>
+                        <IonItem lines="none"><IonLabel>Description du problème : {intervention.description}</IonLabel></IonItem>
+                        {/* <p className="ion-padding-start">{intervention.description}</p> */}
                     </IonCardContent>
                 </IonCard>
                 {/* --- Section Affectation --- */}

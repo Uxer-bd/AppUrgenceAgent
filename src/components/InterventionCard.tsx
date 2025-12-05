@@ -60,7 +60,7 @@ const InterventionCard: React.FC<InterventionCardProps> = ({
       <IonCardHeader>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <IonCardTitle style={{ fontWeight: 'bold' }}>
-            {intervention.clientName}
+            {intervention.client_first_name}
           </IonCardTitle>
 
           <IonBadge color={getStatusColor()}>

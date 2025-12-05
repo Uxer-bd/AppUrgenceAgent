@@ -27,6 +27,8 @@ interface ApiIntervention {
   description: string;
   address: string;
   created_at: string;
+  client_first_name : string;
+  client_phone : string;
   client: { name: string; phone: string } | null;
   latitude: number | null;
   longitude: number | null;
@@ -58,8 +60,8 @@ const AgentDashboard: React.FC = () => {
     description: api.description,
     address: api.address,
     createdAt: api.created_at,
-    clientName: api.client?.name ?? 'Client',
-    phone: api.client?.phone ?? '',
+    client_first_name: api.client_first_name ?? 'Client',
+    client_phone: api.client_phone ?? '',
     coords:
       api.latitude && api.longitude
         ? { lat: api.latitude, lng: api.longitude }
@@ -166,6 +168,23 @@ const AgentDashboard: React.FC = () => {
     }
   };
 
+  // fonction de calcul de temps estimé d'arrivée
+  const computeEstimatedArrivalTime = (minutes: number): string => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + minutes);
+
+    // Format : YYYY-MM-DD HH:mm:ss
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutesStr = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+
+    return `${year}-${month}-${day} ${hours}:${minutesStr}:${seconds}`;
+  };
+
+
   // ------------------------ LOGIQUE DES ACTIONS ------------------------
   const handleStatusUpdate = async (id: number, newStatus: string) => {
     let success = false;
@@ -173,7 +192,7 @@ const AgentDashboard: React.FC = () => {
     switch (newStatus) {
       case 'accepted':
         success = await updateStatusOnServer(id, 'accept', {
-          estimated_arrival_time: 15,
+          estimated_arrival_time: computeEstimatedArrivalTime(30),
         });
         break;
 
