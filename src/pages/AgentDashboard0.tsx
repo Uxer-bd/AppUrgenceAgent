@@ -1,6 +1,6 @@
 // src/pages/AgentDashboard.tsx
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   IonContent,
   IonPage,
@@ -21,6 +21,9 @@ import {
 import InterventionCard from '../components/InterventionCard';
 import InterventionDetail from '../components/InterventionDetail';
 import { Intervention } from '../type';
+import { useAuth } from '../components/logout';
+import { IonIcon } from '@ionic/react';
+import { logOutSharp } from 'ionicons/icons';
 
 interface ApiIntervention {
   id: number;
@@ -70,7 +73,7 @@ const AgentDashboard: React.FC = () => {
   });
 
   // ------------------------ FETCH ------------------------
-  const fetchInterventions = async () => {
+  const fetchInterventions = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch(API_URL, {
@@ -89,11 +92,25 @@ const AgentDashboard: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [API_URL, TOKEN, present]);
+
+  // ------------------------ RAFRAICHISSEMENT AUTOMATIQUE ------------------------
 
   useEffect(() => {
+      fetchInterventions();
+    }, []);
+
+    useEffect(() => {
+    if (selectedIntervention) return; // Stop refresh si l’utilisateur est en train de travailler
+
     fetchInterventions();
-  }, []);
+
+    const interval = setInterval(() => {
+      fetchInterventions();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [selectedIntervention]);
 
   // ------------------------ COUNTS ------------------------
   const counts = useMemo(
@@ -184,6 +201,7 @@ const AgentDashboard: React.FC = () => {
     return `${year}-${month}-${day} ${hours}:${minutesStr}:${seconds}`;
   };
 
+  const { logout } = useAuth();
 
   // ------------------------ LOGIQUE DES ACTIONS ------------------------
   const handleStatusUpdate = async (id: number, newStatus: string) => {
@@ -220,12 +238,21 @@ const AgentDashboard: React.FC = () => {
     <IonPage>
       <IonHeader>
         <IonToolbar color="primary">
-          <IonButtons slot="start">
+          {/* <IonButtons slot="start">
             <IonButton onClick={fetchInterventions} disabled={isLoading}>
               Rafraîchir
             </IonButton>
-          </IonButtons>
+          </IonButtons> */}
           <IonTitle>Interventions Électriques</IonTitle>
+          <IonButtons slot="end" style={{ background : '#c40000ff' }}>
+              <IonButton 
+                  onClick={() => logout()}
+                  color="light"
+              >
+                  <IonIcon icon={ logOutSharp } slot="start" />
+                  Deconnexion
+              </IonButton>
+          </IonButtons>
         </IonToolbar>
 
         <IonToolbar>

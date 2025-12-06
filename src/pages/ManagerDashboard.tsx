@@ -99,6 +99,12 @@ const ManagerDashboard: React.FC = () => {
 
     useEffect(() => {
         fetchAllInterventions();
+
+        const interval = setInterval(() => {
+            fetchAllInterventions();
+        }, 30000); // 30 secondes
+
+        return () => clearInterval(interval);
     }, []);
     
     // Fonction utilitaire pour la couleur
