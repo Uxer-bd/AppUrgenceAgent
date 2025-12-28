@@ -15,7 +15,7 @@ import {
   IonButton,
   IonLoading,
   useIonToast,
-  IonModal,
+  IonModal,useIonAlert,
 } from '@ionic/react';
 
 import InterventionCard from '../components/InterventionCard';
@@ -47,6 +47,7 @@ const AgentDashboard: React.FC = () => {
   const [interventions, setInterventions] = useState<Intervention[]>([]);
   const [selectedTab, setSelectedTab] =
     useState<'pending' | 'accepted_group' | 'completed'>('pending');
+  const [presentAlert] = useIonAlert();
 
   const [selectedIntervention, setSelectedIntervention] =
     useState<Intervention | null>(null);
@@ -207,6 +208,43 @@ const AgentDashboard: React.FC = () => {
   const handleStatusUpdate = async (id: number, newStatus: string) => {
     let success = false;
 
+    if (newStatus === 'refuse') {
+      presentAlert({
+        header: 'Refuser l\'intervention',
+        subHeader: 'Veuillez saisir la raison du refus',
+        inputs: [
+          {
+            name: 'reason',
+            type: 'textarea',
+            placeholder: 'Ex: Trop loin, matériel manquant...',
+          },
+        ],
+        buttons: [
+          { text: 'Annuler', role: 'cancel' },
+          {
+            text: 'Confirmer le refus',
+            handler: async (alertData) => {
+              if (!alertData.reason || alertData.reason.trim() === '') {
+                present({ message: "La raison est obligatoire", color: 'warning', duration: 2000 });
+                return false; // Empêche la fermeture si vide
+              }
+
+              const ok = await updateStatusOnServer(id, 'refuse', {
+                reason: alertData.reason,
+              });
+
+              if (ok) {
+                // On rafraîchit la liste pour faire disparaître l'intervention refusée
+                fetchInterventions();
+                if (selectedIntervention?.id === id) setSelectedIntervention(null);
+              }
+            },
+          },
+        ],
+      });
+      return; // On sort de la fonction car l'alerte gère la suite
+    }
+
     switch (newStatus) {
       case 'accepted':
         success = await updateStatusOnServer(id, 'accept', {
@@ -225,12 +263,7 @@ const AgentDashboard: React.FC = () => {
           parts_used: "string",
         });
         break;
-
-      case 'refuse':
-        success = await updateStatusOnServer(id, 'refuse', {
-          reason: "string",
-        });
-        break;
+        
     }
 
     if (success)
