@@ -16,7 +16,7 @@ import { fr } from 'date-fns/locale';
 
 interface InterventionCardProps {
   intervention: Intervention;
-  onStatusChange: (id: number, newStatus: 'accepted' | 'in_progress' | 'completed') => void;
+  onStatusChange: (id: number, newStatus: 'accepted' | 'in_progress' | 'completed' | 'refuse') => void;
   onViewDetails: () => void;
 }
 
@@ -90,6 +90,17 @@ const InterventionCard: React.FC<InterventionCardProps> = ({
             </IonButton>
           )}
 
+          {intervention.status === 'assigned' && (
+            <IonButton
+              expand="block"
+              color="danger"
+              onClick={() => onStatusChange(intervention.id, 'refuse')}
+              style={{ flex: 1 }}
+            >
+              Rejeter
+            </IonButton>
+          )}
+
           {/* ---- ÉTAPE 2 : accepted → in_progress ---- */}
           {intervention.status === 'accepted' && (
             <IonButton
@@ -112,18 +123,19 @@ const InterventionCard: React.FC<InterventionCardProps> = ({
             >
               Marquer comme terminé
             </IonButton>
-          )}
 
+          )}
           {/* ---- VOIR DÉTAILS ---- */}
-          <IonButton
+          {intervention.status === 'in_progress' || intervention.status === 'accepted' && (
+            <IonButton
             expand="block"
             onClick={onViewDetails}
             style={{ flex: 1 }}
-          >
-            <IonIcon icon={locationSharp} style={{ marginRight: '8px' }} />
-            Voir les détails
-          </IonButton>
-
+            >
+              <IonIcon icon={locationSharp} style={{ marginRight: '8px' }} />
+              Voir les détails
+            </IonButton>
+          )}
         </div>
       </IonCardContent>
     </IonCard>

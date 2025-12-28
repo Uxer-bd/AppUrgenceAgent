@@ -6,7 +6,7 @@ import {
     IonLoading, useIonToast, IonCard, IonCardHeader, IonCardContent, 
     IonItem, IonLabel, IonNote, IonButton, IonIcon, 
     IonModal, IonList, IonRadioGroup, IonRadio, 
-    IonSelect, IonSelectOption
+    IonSelect, IonSelectOption, IonInput,
 } from '@ionic/react';
 import { useHistory, useParams } from 'react-router-dom';
 import {
@@ -14,7 +14,7 @@ import {
     personAddOutline,
     closeCircleOutline,
     alertCircleOutline,
-    callOutline
+    callOutline, createOutline, trashOutline,
 } from 'ionicons/icons';
 
 // Interface pour les données de l'AGENT assigné
@@ -54,6 +54,25 @@ interface AvailableAgent {
     phone: string;
 }
 
+// Interface pour les items d'un devis
+interface QuoteItem {
+    name: string;
+    quantity: number;
+    unit_price: number;
+    total: number;
+}
+
+// Interface pour le Devis
+interface Quote {
+    id: number;
+    intervention_id: number;
+    amount: number;
+    description: string;
+    items: QuoteItem[];
+    valid_until: string;
+    created_at?: string;
+}
+
 const ManagerInterventionDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const history = useHistory();
@@ -69,11 +88,27 @@ const ManagerInterventionDetails: React.FC = () => {
     const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
     const [newPriority, setNewPriority] = useState<'low' | 'medium' | 'high'>('low');
 
-    const API_BASE_URL = "https://intervention.tekfaso.com/api/manager/interventions";
+    // etat pour le devis
+    const [quotes, setQuotes] = useState<Quote[]>([]);
+    const [showQuoteModal, setShowQuoteModal] = useState(false);
+    const [isEditingQuote, setIsEditingQuote] = useState(false);
+
+    // État pour le formulaire de devis
+    const [currentQuote, setCurrentQuote] = useState<Partial<Quote>>({
+        description: '',
+        amount: 0,
+        valid_until: new Date().toISOString().split('T')[0],
+        items: [{ name: '', quantity: 1, unit_price: 0, total: 0 }]
+    });
+
+    // api pour la gestion des devis
+    const QUOTE_API_BASE_URL = "https://api.depannel.com/api/manager/quotes";
+
+    const API_BASE_URL = "https://api.depannel.com/api/manager/interventions";
     // prendre un utilisateur unique
-    const USER_DETAIL_API_BASE_URL = "https://intervention.tekfaso.com/api/users";
+    const USER_DETAIL_API_BASE_URL = "https://api.depannel.com/api/users";
     // CORRECTION 1: Nouvelle URL pour les agents disponibles
-    const AGENT_LIST_API_URL = "https://intervention.tekfaso.com/api/users?role=agent&availability_status=available&per_page=15";
+    const AGENT_LIST_API_URL = "https://api.depannel.com/api/users?role=agent&availability_status=available&per_page=15";
     // const AGENT_LIST_API_URL = "https://intervention.tekfaso.com/api/manager/agents/available";
 
     const TOKEN = localStorage.getItem('access_token');
@@ -93,7 +128,14 @@ const ManagerInterventionDetails: React.FC = () => {
             const response = await fetch(`${USER_DETAIL_API_BASE_URL}/${agentId}`, {
                 headers: { 'Authorization': `Bearer ${TOKEN}` }
             });
+            const quotesResponse = await fetch(`https://api.depannel.com/api/manager/interventions/${id}/quotes`, {
+            headers: { 'Authorization': `Bearer ${TOKEN}` }});
+
             if (!response.ok) throw new Error("Échec du chargement de l'agent.");
+            if (quotesResponse.ok) {
+                const quotesData = await quotesResponse.json();
+                setQuotes(quotesData.data || []);
+            }
 
             const data = await response.json();
             const userData = data.data || data; // L'objet utilisateur complet
@@ -109,9 +151,35 @@ const ManagerInterventionDetails: React.FC = () => {
         }
     }
 
+    // Modification de la fonction de récupération (Point 2)
+    const fetchQuotes = async (interventionId: string, clientPhone: string) => {
+        try {
+            // L'API attend le téléphone dans la query string : ?phone=...
+            const url = `https://api.depannel.com/api/manager/interventions/${interventionId}/quotes?phone=${clientPhone}`;
+            
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${TOKEN}`,
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const responseData = await response.json();
+                // Selon le format habituel de votre API, les données sont dans .data ou .quotes
+                setQuotes(responseData.data || responseData.quotes || []);
+            } else {
+                console.error("Erreur lors de la récupération des devis");
+            }
+        } catch (error) {
+            console.error("Erreur réseau pour les devis:", error);
+        }
+    };
+
     // --- Fonctions de chargement des données ---
 
    const fetchData = async (refresh = false) => {
+
         if (!refresh) setIsLoading(true); else setIsRefreshing(true);
 
         if (USER_ROLE !== 'manager' || !TOKEN) {
@@ -131,7 +199,10 @@ const ManagerInterventionDetails: React.FC = () => {
             if (!interventionResponse.ok) throw new Error("Échec du chargement des détails.");
 
             const responseData = await interventionResponse.json();
-            const rawData = responseData.intervention || responseData.data || responseData; 
+            const rawData = responseData.intervention || responseData.data || responseData;
+
+            // Extraction du téléphone pour l'appel suivant
+            const clientPhone = rawData.client_phone || (rawData.client && rawData.client.phone);
 
             // Déterminer l'objet agent initial
             let assignedAgentData: AssignedAgent | null = rawData.assigned_agent || rawData.agent || null;
@@ -145,13 +216,18 @@ const ManagerInterventionDetails: React.FC = () => {
             // Mapper les données
             const interventionData: Intervention = {
                 ...rawData,
-                client: rawData.client, 
+                client: rawData.client,
                 agent_id: rawData.agent_id || null,
                 agent: assignedAgentData, // Utiliser l'objet agent complet (soit inclus, soit récupéré)
             };
 
-            setIntervention(interventionData); 
+            setIntervention(interventionData);
             setNewPriority(interventionData.priority_level || 'low');
+
+            //Charger les devis avec l'ID et le téléphone
+            if (clientPhone) {
+                await fetchQuotes(id, clientPhone);
+            }
 
             // 2. Charger la liste des agents disponibles (pour la modale)
             const agentsResponse = await fetch(AGENT_LIST_API_URL, {
@@ -190,9 +266,9 @@ const ManagerInterventionDetails: React.FC = () => {
 
             const response = await fetch(`${API_BASE_URL}/${id}/${endpoint}`, {
                 method: method,
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${TOKEN}` 
+                    'Authorization': `Bearer ${TOKEN}`
                 },
                 body: JSON.stringify({ agent_id: selectedAgentId })
             });
@@ -283,6 +359,64 @@ const ManagerInterventionDetails: React.FC = () => {
             present({ message, duration: 3000, color: 'danger' });
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    // Calculer le montant total automatiquement
+    const calculateTotal = (items: QuoteItem[]) => {
+        return items.reduce((acc, item) => acc + (item.quantity * item.unit_price), 0);
+    };
+
+    const handleSaveQuote = async () => {
+        setIsLoading(true);
+        const method = isEditingQuote ? 'PUT' : 'POST';
+        const url = isEditingQuote ? `${QUOTE_API_BASE_URL}/${currentQuote.id}` : QUOTE_API_BASE_URL;
+
+        const payload = {
+            intervention_id: parseInt(id),
+            amount: calculateTotal(currentQuote.items || []),
+            description: currentQuote.description || '',
+            items: (currentQuote.items || []).map(item => ({
+                name: item.name || 'Service sans nom',
+                quantity: Number(item.quantity),
+                unit_price: Number(item.unit_price),
+                total: Number(item.quantity) * Number(item.unit_price)
+            })),
+            valid_until: "2025-12-31"
+        };
+
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) throw new Error("Erreur lors de l'enregistrement du devis");
+
+            present({ message: 'Devis enregistré avec succès !', duration: 2000, color: 'success' });
+            setShowQuoteModal(false);
+            fetchData(true);
+        } catch (error: any) {
+            present({ message: error.message, duration: 3000, color: 'danger' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleDeleteQuote = async (quoteId: number) => {
+        if (!window.confirm("Supprimer ce devis ?")) return;
+        try {
+            const response = await fetch(`${QUOTE_API_BASE_URL}/${quoteId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${TOKEN}` }
+            });
+            if (response.ok) {
+                present({ message: 'Devis supprimé', duration: 2000, color: 'success' });
+                fetchData(true);
+            }
+        } catch (error) {
+            present({ message: "Erreur de suppression", duration: 2000, color: 'danger' });
         }
     };
 
@@ -385,7 +519,52 @@ const ManagerInterventionDetails: React.FC = () => {
                     </IonCardContent>
                 </IonCard>
 
-                {/* --- Bouton Clôturer l'Intervention --- */}
+               
+
+                {/* --- Section Devis (Quotes) --- */}
+                {/* --- Section Devis --- */}
+                <IonCard>
+                    <IonCardContent>
+                        {quotes.length === 0 && <p>Aucun devis pour cette intervention.</p>}
+                        {quotes.map((q) => (
+                            <IonItem key={q.id} lines="full">
+                                <IonLabel>
+                                    <h2>{q.description}</h2>
+                                    <p>Total: <strong>{q.amount} FCFA</strong></p>
+                                </IonLabel>
+                                <IonButton fill="clear" onClick={() => {
+                                    setCurrentQuote({
+                                        id: q.id,
+                                        description: q.description,
+                                        amount: q.amount,
+                                        valid_until: q.valid_until,
+                                        items: q.items || [{ name: '', quantity: 1, unit_price: 0, total: 0 }]
+                                    });
+                                    setIsEditingQuote(true);
+                                    setShowQuoteModal(true);
+                                }}><IonIcon icon={createOutline} /></IonButton>
+                                <IonButton fill="clear" color="danger" onClick={() => handleDeleteQuote(q.id!)}>
+                                    <IonIcon icon={trashOutline} />
+                                </IonButton>
+                            </IonItem>
+                        ))}
+                    </IonCardContent>
+                    <IonCardHeader style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <IonTitle>Devis de l'intervention</IonTitle>
+                        <IonButton size="small" onClick={() => {
+                            setCurrentQuote({
+                                description: '',
+                                amount: 0,
+                                valid_until: new Date().toISOString().split('T')[0],
+                                items: [{ name: '', quantity: 1, unit_price: 0, total: 0 }]
+                            });
+                            setIsEditingQuote(false);
+                            setShowQuoteModal(true);
+                        }}>Ajouter</IonButton>
+                    </IonCardHeader>
+                </IonCard>
+                
+                 {/* --- Bouton Clôturer l'Intervention --- */}
                 {!isClosed && (
                     <IonButton
                         expand="block"
@@ -397,6 +576,7 @@ const ManagerInterventionDetails: React.FC = () => {
                         Clôturer l'Intervention
                     </IonButton>
                 )}
+
                 {isClosed && (
                     <IonNote color="success" style={{ display: 'block', textAlign: 'center', fontSize: '1.2em' }}>
                         Cette intervention est Clôturée.
@@ -445,6 +625,71 @@ const ManagerInterventionDetails: React.FC = () => {
 
                     <IonButton expand="block" onClick={handleSetPriority} className="ion-margin-top" disabled={isLoading}>
                         Appliquer la Priorité
+                    </IonButton>
+                </IonContent>
+            </IonModal>
+
+            {/* --- Modale Devis --- */}
+            <IonModal isOpen={showQuoteModal} onDidDismiss={() => setShowQuoteModal(false)}>
+                <IonHeader>
+                    <IonToolbar>
+                        <IonTitle>{isEditingQuote ? 'Modifier' : 'Créer'} un devis</IonTitle>
+                        <IonButtons slot="end">
+                            <IonButton onClick={() => setShowQuoteModal(false)}>Annuler</IonButton>
+                        </IonButtons>
+                    </IonToolbar>
+                </IonHeader>
+                <IonContent className="ion-padding">
+                    <IonItem>
+                        <IonLabel position="stacked">Description générale</IonLabel>
+                        <IonInput value={currentQuote.description} onIonInput={e => setCurrentQuote({...currentQuote, description: e.detail.value!})} placeholder="ex: Remplacement tableau" />
+                    </IonItem>
+                    <IonItem>
+                        <IonLabel position="stacked">Valide jusqu'au</IonLabel>
+                        <IonInput type="date" value={currentQuote.valid_until} onIonChange={e => setCurrentQuote({...currentQuote, valid_until: e.detail.value!})} />
+                    </IonItem>
+
+                    <h3 className="ion-padding-top">Éléments du devis</h3>
+                    {currentQuote.items?.map((item, index) => (
+                        <IonCard key={index} style={{margin: '10px 0', border: '1px solid #ddd'}}>
+                            <IonCardContent>
+                                <IonItem lines="none">
+                                    <IonInput placeholder="Nom de l'article" value={item.name} onIonInput={e => {
+                                        const newItems = [...currentQuote.items!];
+                                        newItems[index].name = e.detail.value!;
+                                        setCurrentQuote({...currentQuote, items: newItems});
+                                    }} />
+                                </IonItem>
+                                <div style={{display: 'flex'}}>
+                                    <IonItem lines="none" style={{flex: 1}}>
+                                        <IonLabel position="stacked">Qté</IonLabel>
+                                        <IonInput type="number" value={item.quantity} onIonInput={e => {
+                                            const newItems = [...currentQuote.items!];
+                                            newItems[index].quantity = parseInt(e.detail.value!);
+                                            setCurrentQuote({...currentQuote, items: newItems});
+                                        }} />
+                                    </IonItem>
+                                    <IonItem lines="none" style={{flex: 2}}>
+                                        <IonLabel position="stacked">Prix Unitaire</IonLabel>
+                                        <IonInput type="number" value={item.unit_price} onIonInput={e => {
+                                            const newItems = [...currentQuote.items!];
+                                            newItems[index].unit_price = parseFloat(e.detail.value!);
+                                            setCurrentQuote({...currentQuote, items: newItems});
+                                        }} />
+                                    </IonItem>
+                                </div>
+                            </IonCardContent>
+                        </IonCard>
+                    ))}
+                    
+                    <IonButton fill="outline" expand="block" size="small" onClick={() => {
+                        setCurrentQuote({...currentQuote, items: [...currentQuote.items!, {name: '', quantity: 1, unit_price: 0, total: 0}]});
+                    }}>
+                        + Ajouter un article
+                    </IonButton>
+
+                    <IonButton expand="block" className="ion-margin-top" onClick={handleSaveQuote} disabled={isLoading}>
+                        Enregistrer le devis ({calculateTotal(currentQuote.items || [])} FCFA)
                     </IonButton>
                 </IonContent>
             </IonModal>

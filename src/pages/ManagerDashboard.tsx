@@ -33,7 +33,7 @@ const ManagerDashboard: React.FC = () => {
     const history = useHistory();
     
     // Constantes d'API
-    const API_URL = "https://intervention.tekfaso.com/api/manager/interventions";
+    const API_URL = "https://api.depannel.com/api/manager/interventions";
     const TOKEN = localStorage.getItem('access_token');
     const USER_ROLE = localStorage.getItem('user_role');
 
@@ -102,7 +102,7 @@ const ManagerDashboard: React.FC = () => {
 
         const interval = setInterval(() => {
             fetchAllInterventions();
-        }, 30000); // 30 secondes
+        }, 30000);
 
         return () => clearInterval(interval);
     }, []);
@@ -128,15 +128,6 @@ const ManagerDashboard: React.FC = () => {
         default: return status;
         }
     };
-
-    // const getStatusColor = (status:string) => {
-    //     switch (status) {
-    //     case 'assigned': return 'danger';
-    //     case 'accepted': return 'warning';
-    //     case 'in_progress': return 'secondary';
-    //     case 'completed': return 'success';
-    //     }
-    // };
 
     return (
         <IonPage>

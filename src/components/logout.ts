@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useIonRouter, useIonToast } from '@ionic/react';
 
 declare const TOKEN: string; 
-const LOGOUT_URL = 'https://intervention.tekfaso.com/api/auth/logout';
+const LOGOUT_URL = 'https://api.depannel.com/api/auth/logout';
 
 // Ce hook expose la fonction de déconnexion et l'état de chargement
 export const useAuth = () => {

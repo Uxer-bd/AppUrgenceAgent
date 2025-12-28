@@ -23,7 +23,7 @@ const AgentCreationForm: React.FC = () => {
     // --- Configuration API ---
     // Nous supposons un endpoint de création d'utilisateur/enregistrement.
     // Si votre API a un endpoint spécifique pour les administrateurs, ajustez cette URL.
-    const API_URL = "https://intervention.tekfaso.com/api/users"; // Hypothèse d'un endpoint plus générique
+    const API_URL = "https://api.depannel.com/api/users"; // Hypothèse d'un endpoint plus générique
     const TOKEN = localStorage.getItem('access_token'); // Requis pour l'authentification admin
 
     const handleCreateAgent = async (e: React.FormEvent) => {

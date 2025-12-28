@@ -42,7 +42,7 @@ const AgentEditModal: React.FC<AgentEditModalProps> = ({ agent, onClose, onAgent
 
     // --- Configuration API ---
     // Endpoint supposé pour la mise à jour (souvent PUT /api/users/{id})
-    const API_URL = `https://intervention.tekfaso.com/api/users/${agent.id}`; 
+    const API_URL = `https://api.depannel.com/api/users/${agent.id}`; 
     const TOKEN = localStorage.getItem('access_token');
 
     const handleUpdateAgent = async (e: React.FormEvent) => {
@@ -109,19 +109,19 @@ const AgentEditModal: React.FC<AgentEditModalProps> = ({ agent, onClose, onAgent
                 </IonToolbar>
             </IonHeader>
             <IonContent fullscreen className="ion-padding">
-                <form onSubmit={handleUpdateAgent}>
+                <form onSubmit={handleUpdateAgent} style={{ marginInline: '10px' }}>
                     <IonList>
                         {/* 1. Infos Générales */}
                         <IonItem>
-                            <IonLabel position="floating">Nom et Prénoms</IonLabel>
+                            <IonLabel style={{ marginBottom: '10px'}} position="floating">Nom et Prénoms</IonLabel>
                             <IonInput type="text" value={name} onIonChange={(e) => setName(e.detail.value!)} required />
                         </IonItem>
                         <IonItem>
-                            <IonLabel position="floating">Email</IonLabel>
+                            <IonLabel style={{ marginBottom: '10px'}} position="floating">Email</IonLabel>
                             <IonInput type="email" value={email} onIonChange={(e) => setEmail(e.detail.value!)} required />
                         </IonItem>
                         <IonItem>
-                            <IonLabel position="floating">Téléphone</IonLabel>
+                            <IonLabel style={{ marginBottom: '10px'}} position="floating">Téléphone</IonLabel>
                             <IonInput type="tel" value={phone} onIonChange={(e) => setPhone(e.detail.value!)} required />
                         </IonItem>
 
@@ -167,11 +167,11 @@ const AgentEditModal: React.FC<AgentEditModalProps> = ({ agent, onClose, onAgent
                             <IonLabel>Localisation (pour le suivi)</IonLabel>
                         </IonItem>
                         <IonItem>
-                            <IonLabel position="floating">Latitude</IonLabel>
+                            <IonLabel style={{ marginBottom: '10px'}} position="floating">Latitude</IonLabel>
                             <IonInput type="number" value={latitude} onIonChange={(e) => setLatitude(e.detail.value!)} inputmode="decimal" />
                         </IonItem>
                         <IonItem>
-                            <IonLabel position="floating">Longitude</IonLabel>
+                            <IonLabel style={{ marginBottom: '10px'}} position="floating">Longitude</IonLabel>
                             <IonInput type="number" value={longitude} onIonChange={(e) => setLongitude(e.detail.value!)} inputmode="decimal" />
                         </IonItem>
 

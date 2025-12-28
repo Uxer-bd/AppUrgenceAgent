@@ -54,7 +54,7 @@ const AgentDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [present] = useIonToast();
 
-  const API_URL = 'https://intervention.tekfaso.com/api/agent/interventions';
+  const API_URL = 'https://api.depannel.com/api/agent/interventions';
   const TOKEN = localStorage.getItem('access_token');
 
   // ------------------------ MAP API → APP ------------------------
@@ -146,12 +146,12 @@ const AgentDashboard: React.FC = () => {
   // ------------------------ UPDATE API ------------------------
   const updateStatusOnServer = async (
     id: number,
-    action: 'accept' | 'start' | 'complete',
+    action: 'accept' | 'start' | 'complete' | 'refuse',
     payload?: Record<string, unknown>
   ) => {
     try {
       const response = await fetch(
-        `https://intervention.tekfaso.com/api/agent/interventions/${id}/${action}`,
+        `https://api.depannel.com/api/agent/interventions/${id}/${action}`,
         {
           method: 'POST',
           headers: {
@@ -223,6 +223,12 @@ const AgentDashboard: React.FC = () => {
           work_description: "string",
           resolution_notes: "string",
           parts_used: "string",
+        });
+        break;
+
+      case 'refuse':
+        success = await updateStatusOnServer(id, 'refuse', {
+          reason: "string",
         });
         break;
     }
