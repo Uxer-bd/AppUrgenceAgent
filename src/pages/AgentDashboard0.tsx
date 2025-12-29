@@ -24,6 +24,8 @@ import { Intervention } from '../type';
 import { useAuth } from '../components/logout';
 import { IonIcon } from '@ionic/react';
 import { logOutSharp } from 'ionicons/icons';
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 interface ApiIntervention {
   id: number;
@@ -74,8 +76,11 @@ const AgentDashboard: React.FC = () => {
   });
 
   // ------------------------ FETCH ------------------------
-  const fetchInterventions = useCallback(async () => {
-    setIsLoading(true);
+  const prevPendingCount = React.useRef<number | null>(null);
+
+  const fetchInterventions = useCallback(async (isBackground = false) => {
+    if (!isBackground) setIsLoading(true);
+    
     try {
       const response = await fetch(API_URL, {
         headers: {
@@ -87,16 +92,70 @@ const AgentDashboard: React.FC = () => {
       const data: ApiResponse = await response.json();
       if (!response.ok) throw new Error(data.message ?? 'Erreur serveur');
 
-      setInterventions(data.data.map(mapApiToIntervention));
+      const newInterventions = data.data.map(mapApiToIntervention);
+      const newPendingCount = newInterventions.filter(i => i.status === 'assigned').length;
+      // --- NOTIFICATIONS NOUVELLES MISSIONS ---
+      if (prevPendingCount.current !== null && newPendingCount > prevPendingCount.current) {
+        
+        const title = "Nouvelle mission !";
+        const body = `Vous avez une nouvelle intervention en attente.`;
+
+        // Signal sonore
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        audio.play().catch(() => console.warn("Audio bloqué par le navigateur"));
+
+        // Notification selon la plateforme
+        if (Capacitor.isNativePlatform()) {
+          await LocalNotifications.schedule({
+            notifications: [{ title, body, id: Date.now(), schedule: { at: new Date(Date.now() + 500) } }]
+          });
+        } else if ("Notification" in window && Notification.permission === "granted") {
+          new Notification(title, { body });
+        }
+
+        present({ message: `🔔 ${title}`, duration: 5000, color: 'secondary' });
+      }
+
+      prevPendingCount.current = newPendingCount;
+      
+      setInterventions(newInterventions);
+      
     } catch (err) {
-      present({ message: (err as Error).message, duration: 2000, color: 'danger' });
+      console.error(err);
     } finally {
       setIsLoading(false);
     }
-  }, [API_URL, TOKEN, present]);
+  }, [TOKEN, present]);
 
   // ------------------------ RAFRAICHISSEMENT AUTOMATIQUE ------------------------
+    useEffect(() => {
+    const requestAllPermissions = async () => {
+      // Permission Mobile
+      if (Capacitor.isNativePlatform()) {
+        await LocalNotifications.requestPermissions();
+      }
+      // Permission Web
+      else if ("Notification" in window && Notification.permission === "granted") {
+        // Optionnel : un petit son pour le Web
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        audio.play().catch(() => {});
 
+        // Création de la notification
+        const notification = new Notification("Nouvelle Intervention", {
+          body: "Une mission en attente est disponible !",
+          icon: "/assets/icon/favicon.png" // Assurez-vous que le chemin est correct
+        });
+
+        // Action au clic sur la notification
+        notification.onclick = () => {
+          window.focus();
+          setSelectedTab('pending');
+        };
+      }
+    };
+    requestAllPermissions();
+  }, []);
+  
   useEffect(() => {
       fetchInterventions();
     }, []);
@@ -108,7 +167,7 @@ const AgentDashboard: React.FC = () => {
 
     const interval = setInterval(() => {
       fetchInterventions();
-    }, 30000);
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [selectedIntervention]);

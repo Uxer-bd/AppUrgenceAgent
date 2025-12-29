@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-    IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonList, IonItem, 
-    IonLabel, IonSpinner, IonText, useIonToast, IonIcon, IonButtons, 
+    IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonList, IonItem,
+    IonLabel, IonSpinner, IonText, useIonToast, IonIcon, IonButtons,
     IonButton, IonNote, IonModal, IonAlert, IonRefresher, IonRefresherContent
 } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
@@ -21,6 +21,11 @@ interface Agent {
     longitude: number | null;
     availability_status: 'available' | 'on_intervention' | 'on_break' | string; // Statut de travail
     created_at: string;
+}
+
+interface User {
+    role: string;
+    [key: string]: unknown;
 }
 
 const AgentListPage: React.FC = () => {
@@ -73,7 +78,7 @@ const fetchAgents = useCallback(async (refresh = false) => {
         // Assurez-vous que la réponse contient un tableau de données 'data'
         if (result.success && result.data && Array.isArray(result.data.users)) {
             // Filtre optionnel: ne garder que les utilisateurs ayant le rôle 'agent'
-            const filteredAgents = result.data.users.filter((user: any) => user.role === 'agent');
+            const filteredAgents = result.data.users.filter((user: User) => user.role === 'agent');
             setAgents(filteredAgents as Agent[]);
         } else {
             setAgents([]);

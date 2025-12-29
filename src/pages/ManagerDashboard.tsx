@@ -8,6 +8,8 @@ import {
 import { useHistory } from 'react-router-dom';
 import { logOutSharp, personCircleSharp, refreshOutline } from 'ionicons/icons'; 
 import { useAuth } from '../components/logout';
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 // Définition des types basés sur votre API Manager
 type ManagerTab = 'pending' | 'assigned' | 'completed';
@@ -35,7 +37,7 @@ const ManagerDashboard: React.FC = () => {
     // Constantes d'API
     const API_URL = "https://api.depannel.com/api/manager/interventions";
     const TOKEN = localStorage.getItem('access_token');
-    const USER_ROLE = localStorage.getItem('user_role');
+    // const USER_ROLE = localStorage.getItem('user_role');
 
     // --- LOGIQUE DE FILTRAGE ET COMPTEURS ---
 
@@ -61,17 +63,11 @@ const ManagerDashboard: React.FC = () => {
         [interventions, selectedTab]
     );
 
-    // --- FONCTIONS DE FETCH ET UTILITAIRES ---
-    
-    const fetchAllInterventions = async () => {
-        setIsLoading(true);
-        if (!TOKEN || USER_ROLE !== 'manager') {
-            present({ message: 'Accès Manager non autorisé.', duration: 3000, color: 'danger' });
-            history.replace('/login');
-            setIsLoading(false);
-            return;
-        }
+    const prevPendingCount = React.useRef<number | null>(null);
 
+    // --- FONCTIONS DE FETCH ET UTILITAIRES ---
+    const fetchAllInterventions = async (isBackground = false) => {
+        if (!isBackground) setIsLoading(true);
         try {
             const response = await fetch(API_URL, {
                 method: 'GET',
@@ -81,32 +77,75 @@ const ManagerDashboard: React.FC = () => {
                 },
             });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Échec du chargement des interventions.');
-            }
+            if (!response.ok) throw new Error('Échec du chargement');
 
             const responseData = await response.json();
-            setInterventions(responseData.data || responseData || []); 
+            const newData = responseData.data || responseData || [];
+            
+            // 1. On filtre pour ne compter QUE les interventions "pending" (en attente d'assignation)
+            const currentPendingCount = newData.filter((i: Intervention) => i.status === 'pending').length;
+
+            // 2. LOGIQUE D'ALERTE : Uniquement si le nombre de "pending" augmente
+            if (prevPendingCount.current !== null && currentPendingCount > prevPendingCount.current) {
+                
+                const title = "Nouvelle demande client !";
+                const body = `Il y a ${currentPendingCount} intervention(s) en attente d'assignation.`;
+
+                // Signal Sonore
+                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+                audio.play().catch(() => console.log("Audio bloqué"));
+
+                // Notification Mobile
+                if (Capacitor.isNativePlatform()) {
+                    await LocalNotifications.schedule({
+                        notifications: [{ title, body, id: Date.now(), schedule: { at: new Date(Date.now() + 500) } }]
+                    });
+                } 
+                // Notification Web
+                else if ("Notification" in window && Notification.permission === "granted") {
+                    new Notification(title, { body, icon: '/assets/icon/favicon.png' });
+                }
+
+                present({ message: `🔔 ${title}`, duration: 5000, color: 'success' });
+            }
+
+            // 3. IMPORTANT : On met à jour la référence avec le nouveau nombre
+            prevPendingCount.current = currentPendingCount;
+            setInterventions(newData);
 
         } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : 'Erreur de connexion au serveur.';
-            present({ message, duration: 3000, color: 'danger' });
+            if (!isBackground) {
+                const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue';
+                present({ message: errorMessage, duration: 3000, color: 'danger' });
+            }
         } finally {
             setIsLoading(false);
         }
     };
 
-    useEffect(() => {
+        useEffect(() => {
+        // Premier chargement
         fetchAllInterventions();
 
         const interval = setInterval(() => {
-            fetchAllInterventions();
-        }, 30000);
+            fetchAllInterventions(true); // true = pas de loader visuel
+        }, 60000); // 60 secondes pour les managers
 
         return () => clearInterval(interval);
     }, []);
-    
+
+
+    useEffect(() => {
+        const askPerms = async () => {
+            if (Capacitor.isNativePlatform()) {
+                await LocalNotifications.requestPermissions();
+            } else if ("Notification" in window) {
+                await Notification.requestPermission();
+            }
+        };
+        askPerms();
+    }, []);
+
     // Fonction utilitaire pour la couleur
     const getPriorityColor = (priority: string) => {
         switch (priority) {
@@ -134,7 +173,7 @@ const ManagerDashboard: React.FC = () => {
             <IonHeader>
                 <IonToolbar color="primary" style={{ '--background': '#3880ff' }}>
                     <IonButtons slot="start">
-                        <IonButton onClick={fetchAllInterventions} disabled={isLoading}>
+                        <IonButton onClick={() => fetchAllInterventions()} disabled={isLoading}>
                             <IonIcon icon={refreshOutline} slot="icon-only" />
                         </IonButton>
                     </IonButtons>
@@ -143,7 +182,7 @@ const ManagerDashboard: React.FC = () => {
                         <p style={{ margin: '0', fontSize: '0.9em', color: 'rgba(255,255,255,0.8)' }}>Tableau de Bord Manager</p>
                     </div>
                     <IonButtons slot="end"  style={{ border : '#ffff' }}>
-                        <IonButton 
+                        <IonButton
                             onClick={() => history.push('/manager/agent/liste/')}
                             color="light"
                         >
@@ -152,7 +191,7 @@ const ManagerDashboard: React.FC = () => {
                         </IonButton>
                     </IonButtons>
                     <IonButtons slot="end" style={{ background : '#c40000ff' }}>
-                        <IonButton 
+                        <IonButton
                             onClick={() => logout()}
                             color="light"
                         >
