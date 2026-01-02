@@ -6,14 +6,14 @@ import {
     IonLoading, useIonToast, IonCard, IonCardHeader, IonCardContent, 
     IonItem, IonLabel, IonNote, IonButton, IonIcon, 
     IonModal, IonList, IonRadioGroup, IonRadio, 
-    IonSelect, IonSelectOption, IonInput,
+    IonSelect, IonSelectOption, IonInput, IonCardTitle
 } from '@ionic/react';
 import { useHistory, useParams } from 'react-router-dom';
 import {
     refreshOutline,
     personAddOutline,
     closeCircleOutline,
-    alertCircleOutline,
+    alertCircleOutline, star, starOutline,
     callOutline, createOutline, trashOutline,
 } from 'ionicons/icons';
 
@@ -40,6 +40,7 @@ interface Intervention {
     client: ClientData;
     client_first_name : string;
     client_phone : string;
+    title : string;
     agent_id: number;
     status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'closed' | 'assigned';
     priority_level: 'low' | 'medium' | 'high';
@@ -73,6 +74,17 @@ interface Quote {
     created_at?: string;
 }
 
+// Interface pour les avis clients
+interface ReviewData {
+  id: number;
+  intervention_id: number;
+  client_name: string;
+  client_phone: string;
+  rating: number; // ex: 5
+  comment: string; // ex: "test 02020202"
+  created_at: string;
+}
+
 const ManagerInterventionDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const history = useHistory();
@@ -100,6 +112,29 @@ const ManagerInterventionDetails: React.FC = () => {
         valid_until: new Date().toISOString().split('T')[0],
         items: [{ name: '', quantity: 1, unit_price: 0, total: 0 }]
     });
+
+    const [review, setReview] = useState<ReviewData | null>(null);
+
+    const fetchReviewForIntervention = async (interId: number) => {
+    try {
+        const response = await fetch(`https://api.depannel.com/api/reviews/intervention/${interId}`, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${TOKEN}` // Le manager est authentifié
+        }
+        });
+
+        if (response.ok) {
+        const json = await response.json();
+        setReview(json.data || json);
+        } else {
+        setReview(null); // Pas d'avis pour cette intervention
+        }
+    } catch (error) {
+        console.error("Erreur lors de la récupération de l'avis", error);
+    }
+    };
 
     // api pour la gestion des devis
     const QUOTE_API_BASE_URL = "https://api.depannel.com/api/manager/quotes";
@@ -253,6 +288,11 @@ const ManagerInterventionDetails: React.FC = () => {
     useEffect(() => {
         fetchData();
     }, [id]);
+
+    useEffect(() => {
+        if (intervention) {
+            fetchReviewForIntervention(intervention.id);
+        } }, [intervention?.id]);
 
     // --- Fonctions d'action (Assigner, Changer Priorité, Fermer) ---
 
@@ -455,10 +495,9 @@ const ManagerInterventionDetails: React.FC = () => {
                     <IonCardContent>
                         <IonLabel style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h2 style={{ fontSize: '1.4em', fontWeight: 'bold' }}>Statut: <IonNote color='primary'>{intervention.status.toUpperCase()}</IonNote></h2>
-                            
-                            <IonButton 
-                                color={getPriorityColor(intervention.priority_level)} 
-                                size="small" 
+                            <IonButton
+                                color={getPriorityColor(intervention.priority_level)}
+                                size="small"
                                 onClick={() => setShowPriorityModal(true)}
                                 disabled={isClosed}
                             >
@@ -475,10 +514,10 @@ const ManagerInterventionDetails: React.FC = () => {
                 <IonCard style={{ marginBottom: '5px' }}>
                     <IonCardHeader><IonTitle size="large">Détails de l'intervention</IonTitle></IonCardHeader>
                     <IonCardContent>
-                        <IonItem lines="none"><IonLabel>Client : {intervention.client_first_name}</IonLabel></IonItem>
+                        <IonItem lines="none"><IonLabel>Type de problème : {intervention.title}</IonLabel></IonItem>
                         <IonItem lines="none"><IonLabel>Téléphone : {intervention.client_phone}</IonLabel></IonItem>
                         <IonItem lines="none"><IonLabel>Lieu Intervention : {intervention.address}</IonLabel></IonItem>
-                        <IonItem lines="none"><IonLabel>Description du problème : {intervention.description}</IonLabel></IonItem>
+                        {/* <IonItem lines="none"><IonLabel>Description du problème : {intervention.description}</IonLabel></IonItem> */}
                         {/* <p className="ion-padding-start">{intervention.description}</p> */}
                     </IonCardContent>
                 </IonCard>
@@ -526,43 +565,92 @@ const ManagerInterventionDetails: React.FC = () => {
                 <IonCard>
                     <IonCardContent>
                         {quotes.length === 0 && <p>Aucun devis pour cette intervention.</p>}
-                        {quotes.map((q) => (
-                            <IonItem key={q.id} lines="full">
-                                <IonLabel>
-                                    <h2>{q.description}</h2>
-                                    <p>Total: <strong>{q.amount} FCFA</strong></p>
-                                </IonLabel>
-                                <IonButton fill="clear" onClick={() => {
-                                    setCurrentQuote({
-                                        id: q.id,
-                                        description: q.description,
-                                        amount: q.amount,
-                                        valid_until: q.valid_until,
-                                        items: q.items || [{ name: '', quantity: 1, unit_price: 0, total: 0 }]
-                                    });
-                                    setIsEditingQuote(true);
-                                    setShowQuoteModal(true);
-                                }}><IonIcon icon={createOutline} /></IonButton>
-                                <IonButton fill="clear" color="danger" onClick={() => handleDeleteQuote(q.id!)}>
-                                    <IonIcon icon={trashOutline} />
-                                </IonButton>
-                            </IonItem>
+                        {quotes.map(q => (
+                            <IonCard key={q.id} style={{ borderRadius: '15px', border: '2px solid #3880ff', width: '100%' }}>
+                                <IonCardContent>
+                                    <h2 style={{ fontWeight: 'bold', color: '#3880ff' }}>Devis</h2>
+                                    <p><strong>Description :</strong> {q.description}</p>
+                                    <div style={{ background: '#f4f5f8', padding: '10px', borderRadius: '10px', margin: '10px 0' }}>
+                                    {q.items.map((item, idx) => (
+                                        <p key={idx} style={{ margin: '2px 0', fontSize: '0.9em' }}>
+                                        {item.name} (x{item.quantity}) : {item.total} FCFA
+                                        </p>
+                                    ))}
+                                    <h3 style={{ borderTop: '1px solid #ddd', paddingTop: '5px', marginTop: '5px', textAlign: 'right' }}>
+                                        Total : {q.amount} FCFA
+                                    </h3>
+                                    </div>
+                                </IonCardContent>
+                                {intervention.status !== 'completed' && (
+                                    <IonCardHeader style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                                        <IonButton fill="clear" onClick={() => {
+                                            setCurrentQuote({
+                                                id: q.id,
+                                                description: q.description,
+                                                amount: q.amount,
+                                                valid_until: q.valid_until,
+                                                items: q.items || [{ name: '', quantity: 1, unit_price: 0, total: 0 }]
+                                            });
+                                            setIsEditingQuote(true);
+                                            setShowQuoteModal(true);
+                                        }}><IonIcon icon={createOutline} /></IonButton>
+                                        <IonButton fill="clear" color="danger" onClick={() => handleDeleteQuote(q.id!)}>
+                                            <IonIcon icon={trashOutline} />
+                                        </IonButton>
+                                    </IonCardHeader>
+                                )}
+                            </IonCard>
                         ))}
                     </IonCardContent>
-                    <IonCardHeader style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <IonTitle>Devis de l'intervention</IonTitle>
-                        <IonButton size="small" onClick={() => {
-                            setCurrentQuote({
-                                description: '',
-                                amount: 0,
-                                valid_until: new Date().toISOString().split('T')[0],
-                                items: [{ name: '', quantity: 1, unit_price: 0, total: 0 }]
-                            });
-                            setIsEditingQuote(false);
-                            setShowQuoteModal(true);
-                        }}>Ajouter</IonButton>
-                    </IonCardHeader>
+                    {intervention.status !== 'completed' && (
+                        <IonCardHeader style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <IonTitle>Devis de l'intervention</IonTitle>
+                            <IonButton size="small" onClick={() => {
+                                setCurrentQuote({
+                                    description: '',
+                                    amount: 0,
+                                    valid_until: new Date().toISOString().split('T')[0],
+                                    items: [{ name: '', quantity: 1, unit_price: 0, total: 0 }]
+                                });
+                                setIsEditingQuote(false);
+                                setShowQuoteModal(true);
+                            }}>Ajouter</IonButton>
+                        </IonCardHeader>
+                    )}
                 </IonCard>
+
+                {review && (
+                    <IonCard style={{ borderLeft: '4px solid #ffc409' }}>
+                        <IonCardHeader>
+                        <IonCardTitle style={{ fontSize: '1.1em', display: 'flex', alignItems: 'center' }}>
+                            <IonIcon icon={star} color="warning" style={{ marginRight: '8px' }} />
+                            Avis du client
+                        </IonCardTitle>
+                        </IonCardHeader>
+                        <IonCardContent>
+                        <div style={{ marginBottom: '10px' }}>
+                            {/* Affichage des étoiles basées sur review.rating */}
+                            {[1, 2, 3, 4, 5].map((starIdx) => (
+                            <IonIcon 
+                                key={starIdx} 
+                                icon={starIdx <= review.rating ? star : starOutline} 
+                                color="warning" 
+                                style={{ fontSize: '1.5em' }}
+                            />
+                            ))}
+                            <span style={{ marginLeft: '10px', fontWeight: 'bold' }}>{review.rating}/5</span>
+                        </div>
+
+                        <p style={{ fontSize: '1.1em', color: '#444', fontStyle: 'italic' }}>
+                            "{review.comment}"
+                        </p>
+
+                        <div style={{ marginTop: '15px', paddingTop: '10px', borderTop: '1px solid #eee', fontSize: '0.9em' }}>
+                            <p><strong>Date :</strong> {new Date(review.created_at).toLocaleString()}</p>
+                        </div>
+                        </IonCardContent>
+                    </IonCard>
+                    )}
                 
                  {/* --- Bouton Clôturer l'Intervention --- */}
                 {!isClosed && (

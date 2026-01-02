@@ -9,6 +9,7 @@ export interface Intervention {
   createdAt: string; // Format ISO: "2025-10-27T21:10:00Z"
   address: string;
   client_phone: string;
+  title : string;
   coords?: {
     lat: number;
     lng: number;

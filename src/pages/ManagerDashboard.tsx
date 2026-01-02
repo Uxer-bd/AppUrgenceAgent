@@ -19,9 +19,10 @@ interface Intervention {
     reference: string;
     description: string;
     address: string;
+    client_phone: string;
     priority_level: 'low' | 'medium' | 'high';
     // Les statuts API réels
-    status: 'pending' | 'accepted' | 'in-progress' | 'completed' | 'closed'; 
+    status: 'pending' | 'accepted' | 'in-progress' | 'completed' | 'closed' | 'refused'; 
     created_at: string;
     client_first_name: string; 
     assigned_agent?: { name: string; id: number; } | null;
@@ -43,7 +44,7 @@ const ManagerDashboard: React.FC = () => {
 
     // Fonction pour mapper les statuts API aux onglets Manager
     const mapStatusToTab = (status: Intervention['status']): ManagerTab => {
-        if (status === 'pending') return 'pending';
+        if (status === 'pending' || status === 'refused') return 'pending';
         if (status === 'completed' || status === 'closed') return 'completed';
         // accepted, in-progress, started, arrived
         return 'assigned';
@@ -83,12 +84,12 @@ const ManagerDashboard: React.FC = () => {
             const newData = responseData.data || responseData || [];
             
             // 1. On filtre pour ne compter QUE les interventions "pending" (en attente d'assignation)
-            const currentPendingCount = newData.filter((i: Intervention) => i.status === 'pending').length;
+            const currentPendingCount = newData.filter((i: Intervention) => i.status === 'pending' || i.status === 'refused').length;
 
             // 2. LOGIQUE D'ALERTE : Uniquement si le nombre de "pending" augmente
             if (prevPendingCount.current !== null && currentPendingCount > prevPendingCount.current) {
                 
-                const title = "Nouvelle demande client !";
+                const title = "Action requise !";
                 const body = `Il y a ${currentPendingCount} intervention(s) en attente d'assignation.`;
 
                 // Signal Sonore
@@ -129,7 +130,7 @@ const ManagerDashboard: React.FC = () => {
 
         const interval = setInterval(() => {
             fetchAllInterventions(true); // true = pas de loader visuel
-        }, 60000); // 60 secondes pour les managers
+        }, 30000); // 30 secondes pour les managers
 
         return () => clearInterval(interval);
     }, []);
@@ -248,7 +249,7 @@ const ManagerDashboard: React.FC = () => {
                                             {inter.priority_level.toUpperCase()}
                                         </IonNote>
                                     </h2>
-                                    <p>Client : {inter.client_first_name}</p> 
+                                    <p>Contact du client : {inter.client_phone}</p>
                                     <p>Assigné à : {inter.assigned_agent ? inter.assigned_agent.name : 'Non assigné'}</p>
                                     <p style={{ marginTop: '5px', color: '#018101ff', fontSize: '0.85em' }}>
                                         Statut : {getStatusLabel(inter.status)}

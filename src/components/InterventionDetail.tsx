@@ -49,7 +49,7 @@ const InterventionDetail: React.FC<ModalProps> = ({ intervention, onClose, onMar
         {/* Header Info */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
-            <h2 style={{ margin: '0', fontWeight: 'bold' }}>{intervention.client_first_name}</h2>
+            {/* <h2 style={{ margin: '0', fontWeight: 'bold' }}>{intervention.client_first_name}</h2> */}
             <IonLabel color="primary">Priorité Normale</IonLabel>
           </div>
           <span style={{ color: '#666', fontSize: '0.9em' }}>{timeAgo}</span>
@@ -75,7 +75,7 @@ const InterventionDetail: React.FC<ModalProps> = ({ intervention, onClose, onMar
             <IonIcon icon={informationCircle} style={{ marginRight: '16px', color: '#666', fontSize: '24px' }} />
             <div>
               <strong style={{ display: 'block' }}>Description du problème</strong>
-              <span>{intervention.description}</span>
+              <span>{intervention.title}</span>
             </div>
           </div>
         </div>
