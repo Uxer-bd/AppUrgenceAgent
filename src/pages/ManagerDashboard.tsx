@@ -82,13 +82,13 @@ const ManagerDashboard: React.FC = () => {
 
             const responseData = await response.json();
             const newData = responseData.data || responseData || [];
-            
+
             // 1. On filtre pour ne compter QUE les interventions "pending" (en attente d'assignation)
             const currentPendingCount = newData.filter((i: Intervention) => i.status === 'pending' || i.status === 'refused').length;
 
             // 2. LOGIQUE D'ALERTE : Uniquement si le nombre de "pending" augmente
             if (prevPendingCount.current !== null && currentPendingCount > prevPendingCount.current) {
-                
+
                 const title = "Action requise !";
                 const body = `Il y a ${currentPendingCount} intervention(s) en attente d'assignation.`;
 
@@ -101,7 +101,7 @@ const ManagerDashboard: React.FC = () => {
                     await LocalNotifications.schedule({
                         notifications: [{ title, body, id: Date.now(), schedule: { at: new Date(Date.now() + 500) } }]
                     });
-                } 
+                }
                 // Notification Web
                 else if ("Notification" in window && Notification.permission === "granted") {
                     new Notification(title, { body, icon: '/assets/icon/favicon.png' });
@@ -201,26 +201,22 @@ const ManagerDashboard: React.FC = () => {
                         </IonButton>
                     </IonButtons>
                 </IonToolbar>
-                
+
                 {/* --- SEGMENTS (ONGLETS) --- */}
                 <IonToolbar>
                     <IonSegment value={selectedTab} onIonChange={e => setSelectedTab(e.detail.value as ManagerTab)}>
-                        
                         <IonSegmentButton value="pending">
                             <IonLabel>En attente</IonLabel>
                             {counts['pending'] > 0 && <IonBadge color="danger">{counts['pending']}</IonBadge>}
                         </IonSegmentButton>
-                        
                         <IonSegmentButton value="assigned">
                             <IonLabel>Assignées</IonLabel>
                             {counts['assigned'] > 0 && <IonBadge color="success">{counts['assigned']}</IonBadge>}
                         </IonSegmentButton>
-                        
                         <IonSegmentButton value="completed">
                             <IonLabel>Terminées</IonLabel>
                             {counts['completed'] > 0 && <IonBadge color="medium">{counts['completed']}</IonBadge>}
                         </IonSegmentButton>
-                        
                     </IonSegment>
                 </IonToolbar>
             </IonHeader>
@@ -236,15 +232,15 @@ const ManagerDashboard: React.FC = () => {
                     <div style={{ paddingTop: '10px' }}>
                         {filteredInterventions.map(inter => (
                             // Utilisation de IonItem pour une navigation simple vers les détails
-                            <IonItem 
-                                key={inter.id} 
-                                detail={true} 
+                            <IonItem
+                                key={inter.id}
+                                detail={true}
                                 routerLink={`/manager/intervention/${inter.id}`}
                                 style={{ marginBottom: '10px', borderRadius: '8px' }}
                             >
                                 <IonLabel>
                                     <h2 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        {inter.reference} 
+                                        {inter.reference}
                                         <IonNote color={getPriorityColor(inter.priority_level)} style={{ fontWeight: 'bold' }}>
                                             {inter.priority_level.toUpperCase()}
                                         </IonNote>
@@ -255,7 +251,6 @@ const ManagerDashboard: React.FC = () => {
                                         Statut : {getStatusLabel(inter.status)}
                                     </p>
                                 </IonLabel>
-                                
                             </IonItem>
                         ))}
                     </div>

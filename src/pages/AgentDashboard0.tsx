@@ -33,6 +33,7 @@ interface ApiIntervention {
   address: string;
   created_at: string;
   client_first_name : string;
+  title: string;
   client_phone : string;
   client: { name: string; phone: string } | null;
   latitude: number | null;
@@ -66,6 +67,7 @@ const AgentDashboard: React.FC = () => {
     description: api.description,
     address: api.address,
     createdAt: api.created_at,
+    title: api.title,
     client_first_name: api.client_first_name ?? 'Client',
     client_phone: api.client_phone ?? '',
     coords:

@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { 
     IonPage, IonContent, IonHeader, IonToolbar, IonTitle, IonBackButton, IonButtons, 
     IonLoading, useIonToast, IonCard, IonCardHeader, IonCardContent, 
-    IonItem, IonLabel, IonNote, IonButton, IonIcon, 
-    IonModal, IonList, IonRadioGroup, IonRadio, 
+    IonItem, IonLabel, IonNote, IonButton, IonIcon,
+    IonModal, IonList, IonRadioGroup, IonRadio, IonBadge,
     IonSelect, IonSelectOption, IonInput, IonCardTitle
 } from '@ionic/react';
 import { useHistory, useParams } from 'react-router-dom';
@@ -69,6 +69,7 @@ interface Quote {
     intervention_id: number;
     amount: number;
     description: string;
+    status: 'pending' | 'accepted' | 'refused';
     items: QuoteItem[];
     valid_until: string;
     created_at?: string;
@@ -191,7 +192,7 @@ const ManagerInterventionDetails: React.FC = () => {
         try {
             // L'API attend le téléphone dans la query string : ?phone=...
             const url = `https://api.depannel.com/api/manager/interventions/${interventionId}/quotes?phone=${clientPhone}`;
-            
+
             const response = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${TOKEN}`,
@@ -414,16 +415,17 @@ const ManagerInterventionDetails: React.FC = () => {
 
         const payload = {
             intervention_id: parseInt(id),
-            amount: calculateTotal(currentQuote.items || []),
+            amount : calculateTotal(currentQuote.items || []),
             description: currentQuote.description || '',
-            items: (currentQuote.items || []).map(item => ({
-                name: item.name || 'Service sans nom',
-                quantity: Number(item.quantity),
-                unit_price: Number(item.unit_price),
-                total: Number(item.quantity) * Number(item.unit_price)
-            })),
-            valid_until: "2025-12-31"
-        };
+            items:
+                (currentQuote.items || []).map(item => ({
+                    name: item.name || 'Service sans nom',
+                    quantity: Number(item.quantity),
+                    unit_price: Number(item.unit_price),
+                    total: Number(item.quantity) * Number(item.unit_price)
+                })),
+            valid_until: '2026-12-04',
+        }
 
         try {
             const response = await fetch(url, {
@@ -580,9 +582,12 @@ const ManagerInterventionDetails: React.FC = () => {
                                         Total : {q.amount} FCFA
                                     </h3>
                                     </div>
+                                    <IonBadge color={q.status === 'pending' ? 'warning' : q.status === 'accepted' ? 'success' : 'danger'} style={{ margin: '10px' }}>
+                                        {q.status === 'pending' ? 'En attente de validation' : q.status === 'accepted' ? 'Devis accepté' : 'Devis refusé'}
+                                    </IonBadge>
                                 </IonCardContent>
                                 {intervention.status !== 'completed' && (
-                                    <IonCardHeader style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                                    <IonCardContent style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                                         <IonButton fill="clear" onClick={() => {
                                             setCurrentQuote({
                                                 id: q.id,
@@ -597,7 +602,7 @@ const ManagerInterventionDetails: React.FC = () => {
                                         <IonButton fill="clear" color="danger" onClick={() => handleDeleteQuote(q.id!)}>
                                             <IonIcon icon={trashOutline} />
                                         </IonButton>
-                                    </IonCardHeader>
+                                    </IonCardContent>
                                 )}
                             </IonCard>
                         ))}
@@ -734,7 +739,7 @@ const ManagerInterventionDetails: React.FC = () => {
                     </IonItem>
                     <IonItem>
                         <IonLabel position="stacked">Valide jusqu'au</IonLabel>
-                        <IonInput type="date" value={currentQuote.valid_until} onIonChange={e => setCurrentQuote({...currentQuote, valid_until: e.detail.value!})} />
+                        <IonInput type="date" min={new Date().toISOString().split('T')[0]} value={currentQuote.valid_until} onIonChange={e => setCurrentQuote({...currentQuote, valid_until: e.detail.value!})} />
                     </IonItem>
 
                     <h3 className="ion-padding-top">Éléments du devis</h3>
