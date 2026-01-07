@@ -172,34 +172,34 @@ const ManagerDashboard: React.FC = () => {
     return (
         <IonPage>
             <IonHeader>
-                <IonToolbar color="primary" style={{ '--background': '#3880ff' }}>
+                <IonToolbar color="primary">
                     <IonButtons slot="start">
-                        <IonButton onClick={() => fetchAllInterventions()} disabled={isLoading}>
-                            <IonIcon icon={refreshOutline} slot="icon-only" />
+                    <IonButton onClick={() => fetchAllInterventions()}>
+                        <IonIcon icon={refreshOutline} slot="icon-only" />
+                    </IonButton>
+                    </IonButtons>
+                    
+                    <IonTitle>Depannel Manager</IonTitle>
+                    
+                    <IonButtons slot="end" color='white'>
+                        <IonButton onClick={() => logout()} style={{ '--color': 'white' }}>
+                            <IonIcon icon={logOutSharp} slot="icon-only" />
                         </IonButton>
                     </IonButtons>
-                    <div style={{ paddingLeft: '10px' }}>
-                        <IonTitle style={{ fontSize: '1.2em', padding: 0 }}>Gestion des Interventions</IonTitle>
-                        <p style={{ margin: '0', fontSize: '0.9em', color: 'rgba(255,255,255,0.8)' }}>Tableau de Bord Manager</p>
-                    </div>
-                    <IonButtons slot="end"  style={{ border : '#ffff' }}>
-                        <IonButton
-                            onClick={() => history.push('/manager/agent/liste/')}
-                            color="light"
-                        >
-                            <IonIcon icon={personCircleSharp} slot="start" />
-                            Mes Agents
-                        </IonButton>
-                    </IonButtons>
-                    <IonButtons slot="end" style={{ background : '#c40000ff' }}>
-                        <IonButton
-                            onClick={() => logout()}
-                            color="light"
-                        >
-                            <IonIcon icon={ logOutSharp } slot="start" />
-                            Deconnexion
-                        </IonButton>
-                    </IonButtons>
+                </IonToolbar>
+
+                {/* Ligne 2 : Bouton Mes Agents (plus large et cliquable) */}
+                <IonToolbar color="primary" className="ion-no-border">
+                    <IonButton 
+                    fill="clear" 
+                    expand="full" 
+                    color="light" 
+                    onClick={() => history.push('/manager/agent/liste/')}
+                    style={{ fontSize: '0.9em' }}
+                    >
+                    <IonIcon icon={personCircleSharp} slot="start" />
+                    Gérer mes agents
+                    </IonButton>
                 </IonToolbar>
 
                 {/* --- SEGMENTS (ONGLETS) --- */}
@@ -207,15 +207,15 @@ const ManagerDashboard: React.FC = () => {
                     <IonSegment value={selectedTab} onIonChange={e => setSelectedTab(e.detail.value as ManagerTab)}>
                         <IonSegmentButton value="pending">
                             <IonLabel>En attente</IonLabel>
-                            {counts['pending'] > 0 && <IonBadge color="danger">{counts['pending']}</IonBadge>}
+                            {counts['pending'] >= 0 && <IonBadge color="danger">{counts['pending'] || 0}</IonBadge>}
                         </IonSegmentButton>
                         <IonSegmentButton value="assigned">
                             <IonLabel>Assignées</IonLabel>
-                            {counts['assigned'] > 0 && <IonBadge color="success">{counts['assigned']}</IonBadge>}
+                            {counts['assigned'] >= 0 && <IonBadge color="success">{counts['assigned'] || 0}</IonBadge>}
                         </IonSegmentButton>
                         <IonSegmentButton value="completed">
                             <IonLabel>Terminées</IonLabel>
-                            {counts['completed'] > 0 && <IonBadge color="medium">{counts['completed']}</IonBadge>}
+                            {counts['completed'] >= 0 && <IonBadge color="medium">{counts['completed'] || 0}</IonBadge>}
                         </IonSegmentButton>
                     </IonSegment>
                 </IonToolbar>

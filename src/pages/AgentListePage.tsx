@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-    IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonList, IonItem,
-    IonLabel, IonSpinner, IonText, useIonToast, IonIcon, IonButtons,
-    IonButton, IonNote, IonModal, IonAlert, IonRefresher, IonRefresherContent
+    IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonSpinner, IonText, useIonToast, IonIcon, IonButtons,
+    IonButton, IonModal, IonAlert, IonRefresher, IonRefresherContent, IonCard, IonCardContent, IonBadge,
 } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
-import { arrowBackOutline, checkmarkCircle, closeCircle, timeOutline, personAddOutline, createOutline, trashOutline, refreshOutline } from 'ionicons/icons';
+import { arrowBackOutline, checkmarkCircle, closeCircle, timeOutline, personAddOutline,
+     createOutline, trashOutline, refreshOutline, mailOutline, callOutline } from 'ionicons/icons';
 
 import AgentEditModal from '../components/AgentEditModal';
 
@@ -192,79 +192,85 @@ const fetchAgents = useCallback(async (refresh = false) => {
                             <IonIcon icon={refreshOutline} />
                         </IonButton>
                         {/* Bouton pour aller à la création d'agent */}
-                        <IonButton routerLink="/manager/create-agent">
+                        {/* <IonButton routerLink="/manager/create-agent">
                             <IonIcon icon={personAddOutline} slot="start" />
                             Ajouter
-                        </IonButton>
+                        </IonButton> */}
                     </IonButtons>
                 </IonToolbar>
             </IonHeader>
-            <IonContent fullscreen>
+            <IonContent fullscreen className="ion-padding-bottom">
                 <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
                     <IonRefresherContent></IonRefresherContent>
                 </IonRefresher>
 
-                { error && (
-                    <div className="ion-padding ion-text-center">
-                        <IonText color="danger"><p>Erreur de chargement: {error}</p></IonText>
-                        <IonButton onClick={() => fetchAgents(true)}>Réessayer</IonButton>
-                    </div>
-                )}
+                {/* Bouton d'ajout flottant ou en haut */}
+                <div className="ion-padding">
+                    <IonButton routerLink="/manager/create-agent" expand="block" shape="round">
+                        <IonIcon icon={personAddOutline} slot="start" />
+                        Nouvel Agent
+                    </IonButton>
+                </div>
 
-                {agents.length === 0 ? (
-                    <div className="ion-padding ion-text-center">
-                        <IonText color="medium"><p>Aucun agent enregistré dans le système.</p></IonText>
-                        <IonButton routerLink="/admin/new-agent" expand="block">Créer un agent</IonButton>
-                    </div>
-                ) : (
-                    <IonList>
-                        {agents.map((agent) => {
-                            const availability = getAvailabilityStatusStyle(agent.availability_status);
-                            
-                            return (
-                                <IonItem
-                                    key={agent.id}
-                                    lines='full'
-                                >
-                                    <IonLabel>
-                                        <h2>{agent.name}</h2>
-                                        <p>{agent.email}</p>
-                                        <p>Téléphone: {agent.phone}</p>
-                                        <IonNote color="medium">
-                                            Membre depuis: {new Date(agent.created_at).toLocaleDateString()}
-                                        </IonNote>
-                                    </IonLabel>
-                                    <IonIcon 
-                                        slot="end" 
-                                        icon={availability.icon} 
-                                        color={availability.color} 
-                                        className="ion-margin-end" 
-                                    />
-                                    <IonText slot="end" color={availability.color}>
-                                        <small>{availability.text}</small>
-                                    </IonText>
+                {agents.map((agent) => {
+                    const availability = getAvailabilityStatusStyle(agent.availability_status);
+                    
+                    return (
+                        <IonCard key={agent.id} style={{ marginBottom: '16px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+                            <IonCardContent>
+                                {/* Ligne 1 : Nom et Badge de Statut */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                                    <div>
+                                        <h2 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1a1a1a', margin: '0' }}>
+                                            {agent.name}
+                                        </h2>
+                                        <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '2px' }}>
+                                            <IonIcon icon={mailOutline} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                                            {agent.email}
+                                        </p>
+                                    </div>
+                                    <IonBadge color={availability.color} style={{ padding: '6px 10px', borderRadius: '6px' }}>
+                                        {availability.text}
+                                    </IonBadge>
+                                </div>
 
-                                    <IonButtons slot="end">
-                                        <IonButton
-                                            color="primary"
-                                            onClick={() => setSelectedAgent(agent)}
-                                        >
-                                            <IonIcon icon={createOutline} slot="icon-only" />
-                                        </IonButton>
+                                {/* Ligne 2 : Téléphone et Date */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f9f9f9', padding: '8px', borderRadius: '8px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', color: '#444' }}>
+                                        <IonIcon icon={callOutline} style={{ marginRight: '6px' }} />
+                                        <span style={{ fontWeight: '500' }}>{agent.phone}</span>
+                                    </div>
+                                    <small style={{ color: '#888' }}>
+                                        Depuis le {new Date(agent.created_at).toLocaleDateString()}
+                                    </small>
+                                </div>
 
-                                        <IonButton
-                                            color="danger"
-                                            onClick={() => setShowDeleteAlert(agent)}
-                                        >
-                                            <IonIcon icon={trashOutline} slot="icon-only" />
-                                        </IonButton>
-                                    </IonButtons>
-
-                                </IonItem>
-                            );
-                        })}
-                    </IonList>
-                )}
+                                {/* Ligne 3 : Boutons d'actions (Plus larges pour le tactile) */}
+                                <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                                    <IonButton 
+                                        fill="outline" 
+                                        style={{ flex: 1 }} 
+                                        size="small"
+                                        onClick={() => setSelectedAgent(agent)}
+                                    >
+                                        <IonIcon icon={createOutline} slot="start" />
+                                        Modifier
+                                    </IonButton>
+                                    <IonButton 
+                                        fill="outline" 
+                                        color="danger" 
+                                        style={{ flex: 1 }} 
+                                        size="small"
+                                        onClick={() => setShowDeleteAlert(agent)}
+                                    >
+                                        <IonIcon icon={trashOutline} slot="start" />
+                                        Supprimer
+                                    </IonButton>
+                                </div>
+                            </IonCardContent>
+                        </IonCard>
+                    );
+                })}
             </IonContent>
 
             {/* Modale d'édition */}
