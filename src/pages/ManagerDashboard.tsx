@@ -1,6 +1,6 @@
 // src/pages/ManagerDashboard.tsx
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
+import {
     IonContent, IonPage, IonHeader, IonToolbar, IonTitle, IonSegment, IonSegmentButton, 
     IonLabel, IonBadge, IonButtons, IonButton, IonIcon, IonLoading, useIonToast, IonItem,
     IonNote,
@@ -83,34 +83,44 @@ const ManagerDashboard: React.FC = () => {
             const responseData = await response.json();
             const newData = responseData.data || responseData || [];
 
-            // 1. On filtre pour ne compter QUE les interventions "pending" (en attente d'assignation)
             const currentPendingCount = newData.filter((i: Intervention) => i.status === 'pending' || i.status === 'refused').length;
 
-            // 2. LOGIQUE D'ALERTE : Uniquement si le nombre de "pending" augmente
             if (prevPendingCount.current !== null && currentPendingCount > prevPendingCount.current) {
-
                 const title = "Action requise !";
                 const body = `Il y a ${currentPendingCount} intervention(s) en attente d'assignation.`;
 
-                // Signal Sonore
+                // 1. Signal Sonore
                 const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
                 audio.play().catch(() => console.log("Audio bloqué"));
 
-                // Notification Mobile
+                // 2. Notification Mobile (APK)
                 if (Capacitor.isNativePlatform()) {
                     await LocalNotifications.schedule({
-                        notifications: [{ title, body, id: Date.now(), schedule: { at: new Date(Date.now() + 500) } }]
+                        notifications: [{ 
+                            title, 
+                            body, 
+                            id: Math.floor(Math.random() * 10000), // FIX: Un petit entier pour Java
+                            schedule: { at: new Date(Date.now() + 500) } 
+                        }]
                     });
                 }
-                // Notification Web
+                // 3. Notification Web (Mobile & Desktop)
                 else if ("Notification" in window && Notification.permission === "granted") {
-                    new Notification(title, { body, icon: '/assets/icon/favicon.png' });
+                    // FIX: Utilisation du Service Worker pour éviter "Illegal constructor"
+                    navigator.serviceWorker.ready.then((registration) => {
+                        registration.showNotification(title, {
+                            body,
+                            icon: '/assets/icon/favicon.png'
+                        });
+                    }).catch(() => {
+                        // Fallback si le service worker n'est pas prêt
+                        new Notification(title, { body, icon: '/assets/icon/favicon.png' });
+                    });
                 }
 
                 present({ message: `🔔 ${title}`, duration: 5000, color: 'success' });
             }
 
-            // 3. IMPORTANT : On met à jour la référence avec le nouveau nombre
             prevPendingCount.current = currentPendingCount;
             setInterventions(newData);
 
