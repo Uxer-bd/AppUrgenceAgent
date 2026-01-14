@@ -66,6 +66,52 @@ const ManagerDashboard: React.FC = () => {
 
     const prevPendingCount = React.useRef<number | null>(null);
 
+    const triggerNotification = async (count: number) => {
+        const title = "Nouvelle intervention !";
+        const body = `Il y a ${count} intervention(s) en attente.`;
+
+        if (Capacitor.isNativePlatform()) {
+            try {
+                await LocalNotifications.schedule({
+                    notifications: [{
+                        title,
+                        body,
+                        id: Math.floor(Date.now() / 1000),
+                        smallIcon: 'ic_stat_name',
+                        // Utilisez l'ID du canal que nous allons créer ci-dessous
+                        channelId: 'depannel-manager-v1', 
+                        // SUPPRESSION de la ligne sound pour utiliser le bip par défaut
+                    }]
+                });
+            } catch (e) {
+                console.error("Erreur Notification Native:", e);
+            }
+        } else {
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+            audio.play().catch(() => {});
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification(title, { body });
+            }
+        }
+    };
+
+    useEffect(() => {
+        const initNotify = async () => {
+            if (Capacitor.isNativePlatform()) {
+                await LocalNotifications.requestPermissions();
+                // On crée le canal avec importance MAX pour forcer le son
+                await LocalNotifications.createChannel({
+                    id: 'depannel-manager-v1',
+                    name: 'Alertes Manager',
+                    importance: 5,
+                    vibration: true,
+                    visibility: 1
+                });
+            }
+        };
+        initNotify();
+    }, []);
+
     // --- FONCTIONS DE FETCH ET UTILITAIRES ---
     const fetchAllInterventions = async (isBackground = false) => {
         if (!isBackground) setIsLoading(true);
@@ -83,46 +129,22 @@ const ManagerDashboard: React.FC = () => {
             const responseData = await response.json();
             const newData = responseData.data || responseData || [];
 
+            setInterventions(newData);
+
             const currentPendingCount = newData.filter((i: Intervention) => i.status === 'pending' || i.status === 'refused').length;
 
             if (prevPendingCount.current !== null && currentPendingCount > prevPendingCount.current) {
-                const title = "Action requise !";
-                const body = `Il y a ${currentPendingCount} intervention(s) en attente d'assignation.`;
 
-                // 1. Signal Sonore
-                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-                audio.play().catch(() => console.log("Audio bloqué"));
+                await triggerNotification(currentPendingCount);
 
-                // 2. Notification Mobile (APK)
-                if (Capacitor.isNativePlatform()) {
-                    await LocalNotifications.schedule({
-                        notifications: [{ 
-                            title, 
-                            body, 
-                            id: Math.floor(Math.random() * 10000), // FIX: Un petit entier pour Java
-                            schedule: { at: new Date(Date.now() + 500) } 
-                        }]
-                    });
-                }
-                // 3. Notification Web (Mobile & Desktop)
-                else if ("Notification" in window && Notification.permission === "granted") {
-                    // FIX: Utilisation du Service Worker pour éviter "Illegal constructor"
-                    navigator.serviceWorker.ready.then((registration) => {
-                        registration.showNotification(title, {
-                            body,
-                            icon: '/assets/icon/favicon.png'
-                        });
-                    }).catch(() => {
-                        // Fallback si le service worker n'est pas prêt
-                        new Notification(title, { body, icon: '/assets/icon/favicon.png' });
-                    });
-                }
-
-                present({ message: `🔔 ${title}`, duration: 5000, color: 'success' });
+                present({
+                    message: `🔔 Nouveau intervention en attente !`,
+                    duration: 5000,
+                    color: 'success'
+                });
             }
 
             prevPendingCount.current = currentPendingCount;
-            setInterventions(newData);
 
         } catch (error: unknown) {
             if (!isBackground) {
@@ -134,7 +156,7 @@ const ManagerDashboard: React.FC = () => {
         }
     };
 
-        useEffect(() => {
+    useEffect(() => {
         // Premier chargement
         fetchAllInterventions();
 
@@ -143,18 +165,6 @@ const ManagerDashboard: React.FC = () => {
         }, 30000); // 30 secondes pour les managers
 
         return () => clearInterval(interval);
-    }, []);
-
-
-    useEffect(() => {
-        const askPerms = async () => {
-            if (Capacitor.isNativePlatform()) {
-                await LocalNotifications.requestPermissions();
-            } else if ("Notification" in window) {
-                await Notification.requestPermission();
-            }
-        };
-        askPerms();
     }, []);
 
     // Fonction utilitaire pour la couleur

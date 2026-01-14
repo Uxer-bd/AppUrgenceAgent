@@ -77,6 +77,49 @@ const AgentDashboard: React.FC = () => {
     status: api.status
   });
 
+  useEffect(() => {
+    const initNotifications = async () => {
+        if (Capacitor.isNativePlatform()) {
+            await LocalNotifications.requestPermissions();
+            // On crée un canal propre sans référence à un fichier .wav
+            await LocalNotifications.createChannel({
+                id: 'depannel-v1', // Nouvel ID pour forcer la mise à jour
+                name: 'Alertes Missions',
+                importance: 5,
+                vibration: true,
+                visibility: 1
+            });
+        } else if ("Notification" in window) {
+            await Notification.requestPermission();
+        }
+    };
+    initNotifications();
+}, []);
+
+  const triggerAgentNotification = async (count: number) => {
+    const title = "Nouvelle mission !";
+    const body = `Vous avez ${count} intervention(s) assignée(s) en attente.`;
+
+    if (Capacitor.isNativePlatform()) {
+      await LocalNotifications.schedule({
+          notifications: [{ 
+              title, 
+              body, 
+              id: Math.floor(Date.now() / 1000), // Correction ID Java Int
+              channelId: 'depannel-v1', // Liaison au canal sonore
+              schedule: { at: new Date(Date.now() + 200) },
+              smallIcon: 'ic_stat_name', // Doit exister dans vos ressources Android
+          }]
+      });
+    } else {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        audio.play().catch(() => {});
+        if ("Notification" in window && Notification.permission === "granted") {
+            new Notification(title, { body });
+        }
+    }
+  };
+
   // ------------------------ FETCH ------------------------
   const prevPendingCount = React.useRef<number | null>(null);
 
@@ -85,47 +128,36 @@ const AgentDashboard: React.FC = () => {
     
     try {
       const response = await fetch(API_URL, {
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${TOKEN}`,
-        },
+          headers: {
+              Accept: 'application/json',
+              Authorization: `Bearer ${TOKEN}`,
+          },
       });
 
       const data: ApiResponse = await response.json();
       if (!response.ok) throw new Error(data.message ?? 'Erreur serveur');
 
       const newInterventions = data.data.map(mapApiToIntervention);
+      
+      // 1. Mise à jour immédiate de l'affichage
+      setInterventions(newInterventions);
+
+      // 2. Calcul du nombre de missions "assigned" (non encore acceptées)
       const newPendingCount = newInterventions.filter(i => i.status === 'assigned').length;
-      // --- NOTIFICATIONS NOUVELLES MISSIONS ---
+
+      // 3. Déclenchement si le nombre a augmenté
       if (prevPendingCount.current !== null && newPendingCount > prevPendingCount.current) {
-        
-        const title = "Nouvelle mission !";
-        const body = `Vous avez une nouvelle intervention en attente.`;
-
-        // Signal sonore
-        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-        audio.play().catch(() => console.warn("Audio bloqué par le navigateur"));
-
-        // Notification selon la plateforme
-        if (Capacitor.isNativePlatform()) {
-          await LocalNotifications.schedule({
-            notifications: [{ title, body, id: Date.now(), schedule: { at: new Date(Date.now() + 500) } }]
-          });
-        } else if ("Notification" in window && Notification.permission === "granted") {
-          new Notification(title, { body });
-        }
-
-        present({ message: `🔔 ${title}`, duration: 5000, color: 'secondary' });
+          triggerAgentNotification(newPendingCount);
+          present({ message: `🔔 Nouvelle mission assignée !`, duration: 5000, color: 'secondary' });
       }
 
+      // 4. Synchronisation du compteur
       prevPendingCount.current = newPendingCount;
-      
-      setInterventions(newInterventions);
-      
+
     } catch (err) {
-      console.error(err);
+        console.error(err);
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
   }, [TOKEN, present]);
 

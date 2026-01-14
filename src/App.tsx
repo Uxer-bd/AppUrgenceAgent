@@ -3,72 +3,78 @@ import {
   IonApp,
   IonRouterOutlet,
   IonTabs,
-  setupIonicReact
+  setupIonicReact,
+  IonLoading
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import AgentDashboard from './pages/AgentDashboard0';
 import ManagerDashboard from './pages/ManagerDashboard';
 import LoginPage from './pages/Login';
 import ManagerInterventionDetails from './pages/ManagerInterventionDetails';
 
-
-/* Core CSS required for Ionic components to work properly */
+/* Core & Basic CSS (omitted for brevity) */
 import '@ionic/react/css/core.css';
-
-/* Basic CSS for apps built with Ionic */
 import '@ionic/react/css/normalize.css';
 import '@ionic/react/css/structure.css';
 import '@ionic/react/css/typography.css';
-
-/* Optional CSS utils that can be commented out */
-import '@ionic/react/css/padding.css';
-import '@ionic/react/css/float-elements.css';
-import '@ionic/react/css/text-alignment.css';
-import '@ionic/react/css/text-transformation.css';
-import '@ionic/react/css/flex-utils.css';
-import '@ionic/react/css/display.css';
-
-/**
- * Ionic Dark Mode
- * -----------------------------------------------------
- * For more info, please see:
- * https://ionicframework.com/docs/theming/dark-mode
- */
-
-/* import '@ionic/react/css/palettes/dark.always.css'; */
-/* import '@ionic/react/css/palettes/dark.class.css'; */
-// import '@ionic/react/css/palettes/dark.system.css';
-
-/* Theme variables */
 import './theme/variables.css';
+
 import AgentCreationForm from './components/AgentCreationForm';
 import AgentListPage from './pages/AgentListePage';
+import { getAuthSession } from './pages/AuthService';
 
 setupIonicReact();
 
-const App: React.FC = () => (
-  <IonApp>
-    <IonReactRouter>
-      <IonTabs>
+const App: React.FC = () => {
+
+  const [session, setSession] = useState<{ token: string | null; role: string | null } | null>(null);
+
+  useEffect(() => {
+    const loadSession = async () => {
+      const data = await getAuthSession();
+      setSession(data);
+    };
+    loadSession();
+  }, []);
+
+  if (session === null) {
+    return <IonLoading isOpen={true} message="Initialisation..." />;
+  }
+
+  return (
+    <IonApp>
+      <IonReactRouter>
         <IonRouterOutlet>
-          <Route exact path="/dashboard" component={AgentDashboard} />
-          <Route exact path="/dashboard/manager" component={ManagerDashboard} />
-          <Route exact path="/login" component={LoginPage} />
-          <Route exact path="/manager/create-agent" component={AgentCreationForm} />
-          <Route exact path="/manager/agent/liste/" component={AgentListPage} />
-          <Route
-            path="/manager/intervention/:id"
-            exact={true}
-            component={ManagerInterventionDetails}
-          />
+          {/* Route racine : Redirection intelligente */}
           <Route exact path="/">
-            <Redirect to="/login" />
+            {!session.token ? <Redirect to="/login" /> : 
+             session.role === 'manager' ? <Redirect to="/dashboard/manager" /> : <Redirect to="/dashboard" />}
           </Route>
+
+          <Route exact path="/login">
+            {session.token ? <Redirect to="/" /> : <LoginPage />}
+          </Route>
+
+          {/* On n'utilise IonTabs QUE si l'utilisateur est connecté pour éviter des bugs d'affichage au login */}
+          {session.token ? (
+            <IonTabs>
+              <IonRouterOutlet>
+                <Route exact path="/dashboard" component={AgentDashboard} />
+                <Route exact path="/dashboard/manager" component={ManagerDashboard} />
+                <Route exact path="/manager/create-agent" component={AgentCreationForm} />
+                <Route exact path="/manager/agent/liste/" component={AgentListPage} />
+                <Route path="/manager/intervention/:id" component={ManagerInterventionDetails} />
+              </IonRouterOutlet>
+              {/* Ajoutez votre IonTabBar ici si besoin */}
+            </IonTabs>
+          ) : (
+            <Redirect to="/login" />
+          )}
         </IonRouterOutlet>
-      </IonTabs>
-    </IonReactRouter>
-  </IonApp>
-);
+      </IonReactRouter>
+    </IonApp>
+  );
+};
 
 export default App;

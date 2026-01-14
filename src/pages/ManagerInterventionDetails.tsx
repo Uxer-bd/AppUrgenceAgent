@@ -472,7 +472,7 @@ const ManagerInterventionDetails: React.FC = () => {
         );
     }
     
-    const isClosed = intervention.status === 'completed' || intervention.status === 'closed' || intervention.status === 'in_progress';
+    const isClosed = intervention.status === 'completed' || intervention.status === 'closed';
     const assignedAgent = intervention.agent;
     
     return (
