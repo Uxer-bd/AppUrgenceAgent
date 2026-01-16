@@ -23,6 +23,7 @@ import './theme/variables.css';
 import AgentCreationForm from './components/AgentCreationForm';
 import AgentListPage from './pages/AgentListePage';
 import { getAuthSession } from './pages/AuthService';
+import ProblemTypeManagement from './pages/ProblemTypeManagement';
 
 setupIonicReact();
 
@@ -65,6 +66,7 @@ const App: React.FC = () => {
                 <Route exact path="/manager/create-agent" component={AgentCreationForm} />
                 <Route exact path="/manager/agent/liste/" component={AgentListPage} />
                 <Route path="/manager/intervention/:id" component={ManagerInterventionDetails} />
+                <Route exact path="/manager/problem-types" component={ProblemTypeManagement} />
               </IonRouterOutlet>
               {/* Ajoutez votre IonTabBar ici si besoin */}
             </IonTabs>

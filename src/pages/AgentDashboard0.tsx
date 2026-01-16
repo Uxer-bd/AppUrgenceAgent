@@ -370,11 +370,6 @@ const AgentDashboard: React.FC = () => {
     <IonPage>
       <IonHeader>
         <IonToolbar color="primary">
-          {/* <IonButtons slot="start">
-            <IonButton onClick={fetchInterventions} disabled={isLoading}>
-              Rafraîchir
-            </IonButton>
-          </IonButtons> */}
           <IonTitle>Interventions Électriques</IonTitle>
           <IonButtons slot="end" style={{ background : '#c40000ff' }}>
               <IonButton 
