@@ -2,15 +2,19 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem,
   IonLabel, IonButton, IonIcon, IonButtons, IonFab, IonFabButton,
-  useIonToast, IonLoading, IonModal, IonInput, IonItemDivider, IonSelect, IonSelectOption
+  useIonToast, IonLoading, IonModal, IonInput, IonItemDivider, IonSelect, IonSelectOption,
 } from '@ionic/react';
-import { add, create, trash, listOutline, closeOutline, saveOutline } from 'ionicons/icons';
+import { add, create, trash, closeOutline, saveOutline, arrowBackOutline } from 'ionicons/icons';
 
 interface ProblemType {
   id?: number;
   name: string;
   description?: string;
-  priority: 'low' | 'medium' | 'high';
+  icon?: string;
+  code?: string;
+  color?: string;
+  priority_level: 'low' | 'medium' | 'high';
+  sort_order?: number;
 }
 
 const ProblemTypeManagement: React.FC = () => {
@@ -20,7 +24,7 @@ const ProblemTypeManagement: React.FC = () => {
   const [present] = useIonToast();
 
   // État pour le formulaire (Création ou Édition)
-  const [formData, setFormData] = useState<ProblemType>({ name: '', priority: 'medium', description: '' });
+  const [formData, setFormData] = useState<ProblemType>({ name: '', priority_level: 'medium', description: '' });
   const [isEditing, setIsEditing] = useState(false);
 
   const API_URL = 'https://api.depannel.com/api/problem-types';
@@ -33,7 +37,7 @@ const ProblemTypeManagement: React.FC = () => {
       });
       const data = await response.json();
       setTypes(data.data || data);
-    } catch (e) {
+    } catch {
       present({ message: "Erreur de chargement", color: 'danger', duration: 2000 });
     } finally {
       setLoading(false);
@@ -50,6 +54,11 @@ const ProblemTypeManagement: React.FC = () => {
     const url = isEditing ? `${API_URL}/${formData.id}` : API_URL;
     const method = isEditing ? 'PUT' : 'POST';
 
+    const payload = {
+        ...formData,
+        code: formData.name.toUpperCase().replace(/\s+/g, '_'),
+    };
+
     try {
       const response = await fetch(url, {
         method: method,
@@ -58,7 +67,7 @@ const ProblemTypeManagement: React.FC = () => {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
@@ -66,7 +75,7 @@ const ProblemTypeManagement: React.FC = () => {
         setShowModal(false);
         fetchTypes();
       }
-    } catch (e) {
+    } catch{
       present({ message: "Erreur lors de l'enregistrement", color: 'danger', duration: 2000 });
     } finally {
       setLoading(false);
@@ -84,13 +93,13 @@ const ProblemTypeManagement: React.FC = () => {
         setTypes(types.filter(t => t.id !== id));
         present({ message: "Supprimé avec succès", color: 'success', duration: 2000 });
       }
-    } catch (e) {
+    } catch{
       present({ message: "Erreur de suppression", color: 'danger', duration: 2000 });
     }
   };
 
   const openAddModal = () => {
-    setFormData({ name: '', priority: 'medium' });
+    setFormData({ name: '', priority_level: 'medium' });
     setIsEditing(false);
     setShowModal(true);
   };
@@ -105,13 +114,17 @@ const ProblemTypeManagement: React.FC = () => {
     <IonPage>
       <IonHeader>
         <IonToolbar color="primary">
+            <IonButtons slot="start">
+                <IonButton onClick={() => history.back()}>
+                    <IonIcon slot="icon-only" icon={arrowBackOutline} />
+                </IonButton>
+            </IonButtons>
           <IonTitle>Gestion des Problèmes</IonTitle>
         </IonToolbar>
       </IonHeader>
 
       <IonContent>
         <IonLoading isOpen={loading} />
-        
         <IonList>
           <IonItemDivider>Liste des types de pannes</IonItemDivider>
           {types.map((type) => (
@@ -163,8 +176,8 @@ const ProblemTypeManagement: React.FC = () => {
             <IonItem className="ion-margin-bottom">
               <IonLabel position="floating" style={{ marginBottom:"20px" }}>Niveau de Priorité</IonLabel>
               <IonSelect 
-                value={formData.priority} 
-                onIonChange={e => setFormData({...formData, priority: e.detail.value})}
+                value={formData.priority_level} 
+                onIonChange={e => setFormData({...formData, priority_level: e.detail.value})}
               >
                 <IonSelectOption value="low">Faible</IonSelectOption>
                 <IonSelectOption value="medium">Moyenne</IonSelectOption>

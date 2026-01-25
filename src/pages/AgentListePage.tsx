@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
     IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonSpinner, IonText, useIonToast, IonIcon, IonButtons,
     IonButton, IonModal, IonAlert, IonRefresher, IonRefresherContent, IonCard, IonCardContent, IonBadge,
+    IonFab, IonFabButton
 } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
-import { arrowBackOutline, checkmarkCircle, closeCircle, timeOutline, personAddOutline,
-     createOutline, trashOutline, refreshOutline, mailOutline, callOutline } from 'ionicons/icons';
+import { arrowBackOutline, checkmarkCircle, closeCircle, timeOutline,
+     createOutline, trashOutline, refreshOutline, mailOutline, callOutline, add } from 'ionicons/icons';
 
 import AgentEditModal from '../components/AgentEditModal';
 
@@ -199,18 +200,23 @@ const fetchAgents = useCallback(async (refresh = false) => {
                     </IonButtons>
                 </IonToolbar>
             </IonHeader>
+            <IonFab vertical="bottom" horizontal="end" slot="fixed">
+                <IonFabButton routerLink="/manager/create-agent">
+                <IonIcon icon={add} />
+                </IonFabButton>
+            </IonFab>
             <IonContent fullscreen className="ion-padding-bottom">
                 <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
                     <IonRefresherContent></IonRefresherContent>
                 </IonRefresher>
 
                 {/* Bouton d'ajout flottant ou en haut */}
-                <div className="ion-padding">
+                {/* <div className="ion-padding">
                     <IonButton routerLink="/manager/create-agent" expand="block" shape="round">
                         <IonIcon icon={personAddOutline} slot="start" />
                         Nouvel Agent
                     </IonButton>
-                </div>
+                </div> */}
 
                 {agents.map((agent) => {
                     const availability = getAvailabilityStatusStyle(agent.availability_status);

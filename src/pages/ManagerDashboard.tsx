@@ -3,10 +3,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
     IonContent, IonPage, IonHeader, IonToolbar, IonTitle, IonSegment, IonSegmentButton, 
     IonLabel, IonBadge, IonButtons, IonButton, IonIcon, IonLoading, useIonToast, IonItem,
-    IonNote,
+    IonNote,IonGrid, IonRow, IonCol
 } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
-import { logOutSharp, personCircleSharp, refreshOutline } from 'ionicons/icons'; 
+import { logOutSharp, personCircleSharp, refreshOutline, listOutline } from 'ionicons/icons'; 
 import { useAuth } from '../components/logout';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
@@ -210,17 +210,36 @@ const ManagerDashboard: React.FC = () => {
 
                 {/* Ligne 2 : Bouton Mes Agents (plus large et cliquable) */}
                 <IonToolbar color="primary" className="ion-no-border">
-                    <IonButton 
-                    fill="clear" 
-                    expand="full" 
-                    color="light" 
-                    onClick={() => history.push('/manager/agent/liste/')}
-                    style={{ fontSize: '0.9em' }}
-                    >
-                    <IonIcon icon={personCircleSharp} slot="start" />
-                    Gérer mes agents
-                    </IonButton>
-                </IonToolbar>
+                    <IonGrid className="ion-no-padding">
+                        <IonRow>
+                        <IonCol size="6" className="ion-no-padding">
+                            <IonButton 
+                            fill="clear" 
+                            expand="full" 
+                            color="light" 
+                            onClick={() => history.push('/manager/agent/liste/')}
+                            style={{ fontSize: '0.85em', margin: 0 }}
+                            >
+                            <IonIcon icon={personCircleSharp} slot="start" />
+                            Gérer les agents
+                            </IonButton>
+                        </IonCol>
+                        
+                        <IonCol size="6" className="ion-no-padding" style={{ borderLeft: '1px solid rgba(255,255,255,0.2)' }}>
+                            <IonButton 
+                            fill="clear" 
+                            color="light" 
+                            expand="full"
+                            onClick={() => history.push('/manager/problem-types')}
+                            style={{ fontSize: '0.85em', margin: 0 }}
+                            >
+                            <IonIcon icon={listOutline} slot="start" />
+                            Types problèmes
+                            </IonButton>
+                        </IonCol>
+                        </IonRow>
+                    </IonGrid>
+                    </IonToolbar>
 
                 {/* --- SEGMENTS (ONGLETS) --- */}
                 <IonToolbar>
