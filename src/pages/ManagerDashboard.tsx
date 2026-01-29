@@ -1,9 +1,9 @@
 // src/pages/ManagerDashboard.tsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect} from 'react';
 import {
     IonContent, IonPage, IonHeader, IonToolbar, IonTitle, IonSegment, IonSegmentButton, 
-    IonLabel, IonBadge, IonButtons, IonButton, IonIcon, IonLoading, useIonToast, IonItem,
-    IonNote,IonGrid, IonRow, IonCol
+    IonLabel, IonBadge, IonButtons, IonButton, IonIcon, IonLoading, IonItem,
+    IonNote,IonGrid, IonRow, IonCol, IonInfiniteScroll, IonInfiniteScrollContent, useIonToast
 } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { logOutSharp, personCircleSharp, refreshOutline, listOutline } from 'ionicons/icons'; 
@@ -34,6 +34,9 @@ const ManagerDashboard: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [present] = useIonToast();
     const history = useHistory();
+    const [currentPage, setCurrentPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+
     
     // Constantes d'API
     const API_URL = "https://api.depannel.com/api/manager/interventions";
@@ -42,81 +45,137 @@ const ManagerDashboard: React.FC = () => {
 
     // --- LOGIQUE DE FILTRAGE ET COMPTEURS ---
 
-    // Fonction pour mapper les statuts API aux onglets Manager
-    const mapStatusToTab = (status: Intervention['status']): ManagerTab => {
-        if (status === 'pending' || status === 'refused') return 'pending';
-        if (status === 'completed' || status === 'closed') return 'completed';
-        // accepted, in-progress, started, arrived
-        return 'assigned';
-    };
+    const [counts, setCounts] = useState({ pending: 0, assigned: 0, completed: 0 });
 
-    const counts = useMemo(() => {
-        const initial = { 'pending': 0, 'assigned': 0, 'completed': 0 };
-        return interventions.reduce((acc, inter) => {
-            const tab = mapStatusToTab(inter.status);
-            acc[tab]++;
-            return acc;
-        }, initial);
-    }, [interventions]);
+        const interventionsToDisplay = interventions;
 
-    const filteredInterventions = useMemo(() =>
-        interventions.filter(inter => mapStatusToTab(inter.status) === selectedTab),
-        [interventions, selectedTab]
-    );
+        const prevPendingCount = React.useRef<number | null>(null);
 
-    const prevPendingCount = React.useRef<number | null>(null);
+        const triggerNotification = async (count: number) => {
+            const title = count > 1 ? "🚨 Alertes Multiples !" : "🚨 Nouvelle Intervention !";
+            const body = count > 1 
+                ? `Attention, ${count} nouvelles demandes sont arrivées.` 
+                : "Une nouvelle demande nécessite votre attention.";
 
-    const triggerNotification = async (count: number) => {
-        const title = "Nouvelle intervention !";
-        const body = `Il y a ${count} intervention(s) en attente.`;
-
-        if (Capacitor.isNativePlatform()) {
-            try {
-                await LocalNotifications.schedule({
-                    notifications: [{
-                        title,
-                        body,
-                        id: Math.floor(Date.now() / 1000),
-                        smallIcon: 'ic_stat_name',
-                        // Utilisez l'ID du canal que nous allons créer ci-dessous
-                        channelId: 'depannel-manager-v1', 
-                        // SUPPRESSION de la ligne sound pour utiliser le bip par défaut
-                    }]
-                });
-            } catch (e) {
-                console.error("Erreur Notification Native:", e);
+            if (Capacitor.isNativePlatform()) {
+                try {
+                    await LocalNotifications.schedule({
+                        notifications: [{
+                            title,
+                            body,
+                            id: 1, // Utiliser un ID fixe permet d'éviter de spammer si plusieurs appels arrivent
+                            smallIcon: 'ic_stat_name',
+                            // IMPORTANT : Le son est géré par le channelId sur Android
+                            channelId: 'depannel-manager-v1', 
+                            schedule: { at: new Date(Date.now() + 1000) }, // Petit délai pour garantir le déclenchement
+                        }]
+                    });
+                } catch (_e) {
+                    console.error("Erreur schedule notification:", _e);
+                }
+            } else {
+                // Son pour le Web (Fallback)
+                try {
+                    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+                    await audio.play();
+                } catch (e) {
+                    console.warn("Le navigateur a bloqué l'audio (interaction requise)");
+                }
             }
-        } else {
-            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-            audio.play().catch(() => {});
-            if ("Notification" in window && Notification.permission === "granted") {
-                new Notification(title, { body });
-            }
-        }
-    };
+        };
 
     useEffect(() => {
         const initNotify = async () => {
             if (Capacitor.isNativePlatform()) {
-                await LocalNotifications.requestPermissions();
-                // On crée le canal avec importance MAX pour forcer le son
-                await LocalNotifications.createChannel({
-                    id: 'depannel-manager-v1',
-                    name: 'Alertes Manager',
-                    importance: 5,
-                    vibration: true,
-                    visibility: 1
-                });
+                // 1. Demander les permissions explicitement
+                const perm = await LocalNotifications.requestPermissions();
+                
+                if (perm.display === 'granted') {
+                    // 2. Supprimer l'ancien canal pour être sûr que les nouveaux paramètres (son/importance) sont pris en compte
+                    try {
+                        await LocalNotifications.deleteChannel({ id: 'depannel-manager-v1' });
+                    } catch (e) {}
+
+                    // 3. Créer le canal avec priorité maximale
+                    await LocalNotifications.createChannel({
+                        id: 'depannel-manager-v1',
+                        name: 'Alertes Manager',
+                        importance: 5, // 5 = Urgent (Son + Vibreur + Notification flottante)
+                        description: 'Canal pour les nouvelles interventions',
+                        sound: 'default', // Ou le nom de votre fichier sans extension
+                        vibration: true,
+                        visibility: 1
+                    });
+                }
             }
         };
         initNotify();
     }, []);
 
-    // --- FONCTIONS DE FETCH ET UTILITAIRES ---
-    const fetchAllInterventions = async (isBackground = false) => {
-        if (!isBackground) setIsLoading(true);
+    // État pour stocker le dernier compte connu (à mettre au début du composant)
+    const [lastTotalPending, setLastTotalPending] = useState<number | null>(null);
+
+    const checkNewInterventions = (currentPending: number) => {
+        // Si c'est le premier chargement, on initialise juste la valeur
+        if (lastTotalPending === null) {
+            setLastTotalPending(currentPending);
+            return;
+        }
+
+        // Si le nouveau total est supérieur au précédent
+        if (currentPending > lastTotalPending) {
+            const diff = currentPending - lastTotalPending;
+            triggerNotification(diff);
+            
+            present({
+                message: `🔔 ${diff} nouvelle(s) intervention(s) en attente !`,
+                duration: 5000,
+                color: 'success',
+                position: 'top'
+            });
+        }
+
+        // On met à jour la référence pour la prochaine vérification
+        setLastTotalPending(currentPending);
+    };
+
+    const fetchStats = async () => {
         try {
-            const response = await fetch(API_URL, {
+            const response = await fetch("https://api.depannel.com/api/manager/interventions/stats", {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${TOKEN}`,
+                },
+            });
+            const result = await response.json();
+
+            const stats = result.by_status;
+            checkNewInterventions(stats.pending || 0);
+            setCounts({
+                pending: (stats.pending || 0),
+                assigned: (stats.assigned || 0) + (stats.accepted || 0) + (stats.in_progress || 0),
+                completed: (stats.completed || 0) + (stats.closed || 0)
+            });
+        } catch (error) {
+            console.error("Erreur stats:", error);
+        }
+    };
+
+    // --- FONCTIONS DE FETCH ET UTILITAIRES ---
+    const fetchInterventions = async (page: number, isRefresh: boolean = false) => {
+        if (isRefresh) setIsLoading(true);
+
+        let url = `${API_URL}?page=${page}`;
+
+        if (selectedTab === 'assigned') {
+            url += `&status[]=accepted&status[]=in-progress&status[]=assigned`;
+        } else {
+            url += `&status=${selectedTab}`;
+        }
+
+        try {
+            const response = await fetch(url, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
@@ -127,45 +186,45 @@ const ManagerDashboard: React.FC = () => {
             if (!response.ok) throw new Error('Échec du chargement');
 
             const responseData = await response.json();
-            const newData = responseData.data || responseData || [];
+            const newData = responseData.data || [];
+            
+            // Si c'est un refresh ou la page 1, on remplace tout. Sinon, on concatène.
+            setInterventions(prev => (page === 1 ? newData : [...prev, ...newData]));
 
-            setInterventions(newData);
-
-            const currentPendingCount = newData.filter((i: Intervention) => i.status === 'pending' || i.status === 'refused').length;
-
-            if (prevPendingCount.current !== null && currentPendingCount > prevPendingCount.current) {
-
-                await triggerNotification(currentPendingCount);
-
-                present({
-                    message: `🔔 Nouveau intervention en attente !`,
-                    duration: 5000,
-                    color: 'success'
-                });
+            // Vérification de la page suivante via l'objet de pagination de ton API
+            setHasMore(responseData.next_page_url !== null);
+            
+            // Logique des notifications (sur la page 1 uniquement pour éviter les doublons)
+            if (page === 1) {
+                const currentPendingCount = newData.filter((i: Intervention) => i.status === 'pending' || i.status === 'refused').length;
+                if (prevPendingCount.current !== null && currentPendingCount > prevPendingCount.current) {
+                    await triggerNotification(currentPendingCount);
+                }
+                prevPendingCount.current = currentPendingCount;
             }
 
-            prevPendingCount.current = currentPendingCount;
-
-        } catch (error: unknown) {
-            if (!isBackground) {
-                const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue';
-                present({ message: errorMessage, duration: 3000, color: 'danger' });
-            }
+        } catch (error) {
+            console.error("Erreur API Manager:", error);
         } finally {
             setIsLoading(false);
         }
     };
 
     useEffect(() => {
-        // Premier chargement
-        fetchAllInterventions();
+        fetchInterventions(1, true);
+        fetchStats();
 
         const interval = setInterval(() => {
-            fetchAllInterventions(true); // true = pas de loader visuel
-        }, 30000); // 30 secondes pour les managers
+            setInterventions([]);
+            // En arrière-plan, on rafraîchit la page 1 (les plus récentes)
+            setCurrentPage(1);
+            setHasMore(true);
+            fetchInterventions(1, false);
+            fetchStats();
+        }, 30000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [selectedTab]);
 
     // Fonction utilitaire pour la couleur
     const getPriorityColor = (priority: string) => {
@@ -194,7 +253,7 @@ const ManagerDashboard: React.FC = () => {
             <IonHeader>
                 <IonToolbar color="primary">
                     <IonButtons slot="start">
-                    <IonButton onClick={() => fetchAllInterventions()}>
+                    <IonButton onClick={() => fetchInterventions(1)}>
                         <IonIcon icon={refreshOutline} slot="icon-only" />
                     </IonButton>
                     </IonButtons>
@@ -246,15 +305,17 @@ const ManagerDashboard: React.FC = () => {
                     <IonSegment value={selectedTab} onIonChange={e => setSelectedTab(e.detail.value as ManagerTab)}>
                         <IonSegmentButton value="pending">
                             <IonLabel>En attente</IonLabel>
-                            {counts['pending'] >= 0 && <IonBadge color="danger">{counts['pending'] || 0}</IonBadge>}
+                            <IonBadge color="danger">{counts.pending}</IonBadge>
                         </IonSegmentButton>
+                        
                         <IonSegmentButton value="assigned">
                             <IonLabel>Assignées</IonLabel>
-                            {counts['assigned'] >= 0 && <IonBadge color="success">{counts['assigned'] || 0}</IonBadge>}
+                            <IonBadge color="success">{counts.assigned}</IonBadge>
                         </IonSegmentButton>
+                        
                         <IonSegmentButton value="completed">
                             <IonLabel>Terminées</IonLabel>
-                            {counts['completed'] >= 0 && <IonBadge color="medium">{counts['completed'] || 0}</IonBadge>}
+                            <IonBadge color="medium">{counts.completed}</IonBadge>
                         </IonSegmentButton>
                     </IonSegment>
                 </IonToolbar>
@@ -263,13 +324,13 @@ const ManagerDashboard: React.FC = () => {
             <IonContent fullscreen className="ion-padding" style={{ '--background': '#f4f5f8' }}>
                 <IonLoading isOpen={isLoading} message={'Chargement...'} />
 
-                {filteredInterventions.length === 0 && !isLoading ? (
+                {interventionsToDisplay.length === 0 && !isLoading ? (
                     <div style={{ textAlign: 'center', color: '#888', marginTop: '50px' }}>
                         <p>Aucune intervention dans cette catégorie.</p>
                     </div>
                 ) : (
                     <div style={{ paddingTop: '10px' }}>
-                        {filteredInterventions.map(inter => (
+                        {interventionsToDisplay.map(inter => (
                             // Utilisation de IonItem pour une navigation simple vers les détails
                             <IonItem
                                 key={inter.id}
@@ -294,6 +355,22 @@ const ManagerDashboard: React.FC = () => {
                         ))}
                     </div>
                 )}
+
+                <IonInfiniteScroll
+                    disabled={!hasMore}
+                    threshold="100px"
+                    onIonInfinite={async (e) => {
+                        const nextPage = currentPage + 1;
+                        await fetchInterventions(nextPage);
+                        setCurrentPage(nextPage);
+                        e.target.complete();
+                    }}
+                >
+                    <IonInfiniteScrollContent 
+                        loadingSpinner="bubbles" 
+                        loadingText="Chargement des interventions suivantes..." 
+                    />
+                </IonInfiniteScroll>
             </IonContent>
         </IonPage>
     );
