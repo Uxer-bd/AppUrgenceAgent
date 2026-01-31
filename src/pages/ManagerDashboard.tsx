@@ -142,7 +142,7 @@ const ManagerDashboard: React.FC = () => {
     };
 
     // --- FONCTIONS DE FETCH ET UTILITAIRES ---
-    const fetchInterventions = async (page: number, isRefresh: boolean = false) => {
+    const fetchInterventions = async (page: number, isRefresh: boolean = false, isAutoRefresh: boolean = false) => {
         if (isRefresh) setIsLoading(true);
 
         let url = `${API_URL}?page=${page}`;
@@ -191,8 +191,8 @@ const ManagerDashboard: React.FC = () => {
             // Logique des notifications (sur la page 1 uniquement pour éviter les doublons)
             if (page === 1) {
                 const currentPendingCount = newData.filter((i: Intervention) => i.status === 'pending' || i.status === 'refused').length;
-                if (prevPendingCount.current !== null && currentPendingCount > prevPendingCount.current) {
-                    await triggerNotification(currentPendingCount);
+                if (isAutoRefresh && prevPendingCount.current !== null && currentPendingCount > prevPendingCount.current) {
+                    await triggerNotification(currentPendingCount - prevPendingCount.current);
                 }
                 prevPendingCount.current = currentPendingCount;
             }
@@ -205,7 +205,7 @@ const ManagerDashboard: React.FC = () => {
     };
 
     useEffect(() => {
-        fetchInterventions(1, true);
+        fetchInterventions(1, true, false);
         fetchStats();
 
         const interval = setInterval(() => {
