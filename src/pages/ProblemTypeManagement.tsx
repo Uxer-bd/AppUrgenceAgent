@@ -3,7 +3,7 @@ import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem,
   IonLabel, IonButton, IonIcon, IonButtons, IonFab, IonFabButton,
   useIonToast, IonLoading, IonModal, IonInput, IonItemDivider, IonSelect, IonSelectOption, IonToggle,
-  IonBadge,
+  IonBadge, IonNote
 } from '@ionic/react';
 import { add, create, trash, closeOutline, saveOutline, arrowBackOutline } from 'ionicons/icons';
 
@@ -112,6 +112,51 @@ const ProblemTypeManagement: React.FC = () => {
     setShowModal(true);
   };
 
+  const toggleProblemStatus = async (problem: ProblemType) => {
+    const newStatus = !problem.is_active;
+
+    // 1. On prépare l'objet complet tel que demandé par le schéma PUT
+    const updatedProblem = {
+        ...problem,
+        is_active: newStatus,
+        // On s'assure que les champs obligatoires sont bien présents
+        // Si 'code' est requis par votre logique backend, on le garde ou on le génère
+        code: problem.code || problem.name.toUpperCase().replace(/\s+/g, '_')
+    };
+
+    // 2. Mise à jour optimiste
+    setTypes(prev => 
+        prev.map(p => p.id === problem.id ? updatedProblem : p)
+    );
+
+    try {
+      const response = await fetch(`${API_URL}/${problem.id}`, {
+          method: 'PUT', // On utilise PUT comme indiqué sur votre capture
+          headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${TOKEN}`,
+              'Accept': 'application/json'
+          },
+          body: JSON.stringify(updatedProblem) // On envoie l'objet COMPLET ici
+      });
+
+      if (!response.ok) {
+          // Optionnel : logger l'erreur pour voir ce que l'API renvoie exactement
+          const errorData = await response.json();
+          console.error("Erreur API détaillée:", errorData);
+          throw new Error();
+      }
+
+      present({ message: `Statut mis à jour !`, duration: 1500, color: 'success', position: 'bottom' });
+    } catch (error) {
+        // Retour en arrière si ça échoue
+        setTypes(prev => 
+            prev.map(p => p.id === problem.id ? { ...p, is_active: !newStatus } : p)
+        );
+        present({ message: 'Erreur de mise à jour', color: 'danger', duration: 2000 });
+    }
+  };
+
   return (
     <IonPage>
       <IonHeader>
@@ -135,6 +180,16 @@ const ProblemTypeManagement: React.FC = () => {
                 <h2>{type.name}</h2>
                 <p>{type.description}</p>
               </IonLabel>
+              <div slot="end" style={{ display: 'flex', alignItems: 'center' }}>
+                  <IonNote style={{ fontSize: '0.8em', marginRight: '8px' }}>
+                      {type.is_active ? 'ACTIF' : 'INACTIF'}
+                  </IonNote>
+                  <IonToggle 
+                      checked={type.is_active} 
+                      color="success"
+                      onIonChange={() => toggleProblemStatus(type)} 
+                  />
+              </div>
               <IonButtons slot="end">
                 <IonButton color="primary" onClick={() => openEditModal(type)}>
                   <IonIcon icon={create} slot="icon-only" />
@@ -143,9 +198,6 @@ const ProblemTypeManagement: React.FC = () => {
                   <IonIcon icon={trash} slot="icon-only" />
                 </IonButton>
               </IonButtons>
-              <IonBadge color={type.is_active ? 'success' : 'medium'}>
-                  {type.is_active ? 'Actif' : 'Inactif'}
-              </IonBadge>
             </IonItem>
           ))}
         </IonList>
