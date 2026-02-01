@@ -2,7 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem,
   IonLabel, IonButton, IonIcon, IonButtons, IonFab, IonFabButton,
-  useIonToast, IonLoading, IonModal, IonInput, IonItemDivider, IonSelect, IonSelectOption,
+  useIonToast, IonLoading, IonModal, IonInput, IonItemDivider, IonSelect, IonSelectOption, IonToggle,
+  IonBadge,
 } from '@ionic/react';
 import { add, create, trash, closeOutline, saveOutline, arrowBackOutline } from 'ionicons/icons';
 
@@ -15,6 +16,7 @@ interface ProblemType {
   color?: string;
   priority_level: 'low' | 'medium' | 'high';
   sort_order?: number;
+  is_active?: boolean;
 }
 
 const ProblemTypeManagement: React.FC = () => {
@@ -24,7 +26,7 @@ const ProblemTypeManagement: React.FC = () => {
   const [present] = useIonToast();
 
   // État pour le formulaire (Création ou Édition)
-  const [formData, setFormData] = useState<ProblemType>({ name: '', priority_level: 'medium', description: '' });
+  const [formData, setFormData] = useState<ProblemType>({ name: '', priority_level: 'medium', description: '', is_active: true });
   const [isEditing, setIsEditing] = useState(false);
 
   const API_URL = 'https://api.depannel.com/api/problem-types';
@@ -32,12 +34,12 @@ const ProblemTypeManagement: React.FC = () => {
 
   const fetchTypes = useCallback(async () => {
     try {
-      const response = await fetch(API_URL, {
+      const response = await fetch(API_URL+`?active_only=false`, {
         headers: { 'Authorization': `Bearer ${TOKEN}`, 'Accept': 'application/json' }
       });
       const data = await response.json();
       setTypes(data.data || data);
-    } catch {
+    } catch (error) {
       present({ message: "Erreur de chargement", color: 'danger', duration: 2000 });
     } finally {
       setLoading(false);
@@ -141,6 +143,9 @@ const ProblemTypeManagement: React.FC = () => {
                   <IonIcon icon={trash} slot="icon-only" />
                 </IonButton>
               </IonButtons>
+              <IonBadge color={type.is_active ? 'success' : 'medium'}>
+                  {type.is_active ? 'Actif' : 'Inactif'}
+              </IonBadge>
             </IonItem>
           ))}
         </IonList>
@@ -192,6 +197,14 @@ const ProblemTypeManagement: React.FC = () => {
                 placeholder="Ex: Panne de disjoncteur"
               />
             </IonItem>
+            <IonItem>
+              <IonLabel>Type de panne actif</IonLabel>
+              <IonToggle 
+                  slot="end" 
+                  checked={formData.is_active} 
+                  onIonChange={e => setFormData({ ...formData, is_active: e.detail.checked })}
+              />
+          </IonItem>
 
             <IonButton expand="block" onClick={handleSave} className="ion-margin-top" slot='' style={{ margin:'20px' }}>
               <IonIcon icon={saveOutline} slot="start" />
