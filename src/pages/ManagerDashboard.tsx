@@ -150,7 +150,7 @@ const ManagerDashboard: React.FC = () => {
     };
 
     // --- FONCTIONS DE FETCH ET UTILITAIRES ---
-    const fetchInterventions = async (page: number, isRefresh: boolean = false) => {
+    const fetchInterventions = async (page: number, isRefresh: boolean = false, isAutoRefresh: boolean = false) => {
         if (isRefresh) setIsLoading(true);
 
         let url = `${API_URL}?page=${page}`;
@@ -206,7 +206,7 @@ const ManagerDashboard: React.FC = () => {
     };
 
     useEffect(() => {
-        fetchInterventions(1, true);
+        fetchInterventions(1, true, false);
         fetchStats();
 
         const interval = setInterval(() => {
